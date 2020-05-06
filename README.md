@@ -23,12 +23,36 @@ If `make` doesn't work, do `gmake`. Typically requires root privileges (unless y
 
 ## Step 2. FIt-SNE 
 
-We are going to use R implementation, version 1.2.0, from repo https://github.com/KlugerLab/FIt-SNE/releases
+We are going to use R implementation, from repo https://github.com/KlugerLab/FIt-SNE
+
 ```
+$ cd programsSingleCell
+$ git clone https://github.com/KlugerLab/FIt-SNE.git
+$ cd FIt-SNE/
 $ sudo su
 # g++ -std=c++11 -O3  src/sptree.cpp src/tsne.cpp src/nbodyfft.cpp  -o bin/fast_tsne -pthread -lfftw3 -lm -Wno-address-of-packed-member
 ```
-------
+Important information about latest releases (version 1.2.0, version 1.2.1): https://github.com/KlugerLab/FIt-SNE/releases
+
+"""
+Several changes to default FIt-SNE settings to make it more suitable for embedding large datasets.
+
+Major changes to default values:
+-Learning rate increased from the fixed value of 200 to max(200, N/early_exag_coeff).
+-Iteration number decreased from 1000 to 750.
+-Initialization is set to PCA (computed via fast SVD implementations like ARPACK).
+
+Minor changes:
+-Late exaggeration start is set to the end of early exaggeration (if late exaggeration coefficient is provided).
+-Limiting max step size to 5 (solves problem encountered when learning rate set too high and attractive forces cause a small number of points to overshoot)
+
+""" *Dr. Linderman*
+
+----------
 References:
 
-George C. Linderman, Manas Rachh, Jeremy G. Hoskins, Stefan Steinerberger, Yuval Kluger. (2019). Fast interpolation-based t-SNE for improved visualization of single-cell RNA-seq data. Nature Methods. (link)
+George C. Linderman, Manas Rachh, Jeremy G. Hoskins, Stefan Steinerberger, Yuval Kluger. (2019). Fast interpolation-based t-SNE for improved visualization of single-cell RNA-seq data. Nature Methods. 
+
+Kobak, D. & Berens, P. The art of using t-SNE for single-cell transcriptomics. Nat. Commun. 10, (2019).
+
+
