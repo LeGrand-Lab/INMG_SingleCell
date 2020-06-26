@@ -1,11 +1,30 @@
 #!/usr/bin/bash
 pwd
-for i in $(ls seu*);do
+
+# uncompress data keeping ancient
+cd 
+
+
+
+for i in $(ls seu*D0.R);do
 	chmod 755 ${i}
 done
 
-for i in $(ls seu*);do
-	echo """=== ${i} ====="
-	./${i}
+#execute 
+#for i in $(ls seu*D0.R);do
+#	echo """=== ${i} ====="
+#	./${i}
+#done
 
-done
+# 
+
+# NOTE: if .tar.gz files accidentally deleted
+
+#for i in $(ls .);
+#	if (! -f $i); then
+#		do tar -czvf ${i}".tar.gz" $i;
+#	fi
+#done
+
+
+
