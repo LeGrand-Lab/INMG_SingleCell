@@ -1,16 +1,23 @@
 # INMG_SingleCell
 
+!! under construction !!
 
-# Installing FIt-SNE latest version
+## Technical notes
 
-## Step 1. Fourier transform
+**UMAP vs FIt-SNE**
+
+For clusters visualization algorithms, UMAP and FIt-SNE have demonstrated their superiority, with an slight advantage of UMAP in terms of time and consistence. However some authors highlight the capacity of tSNE to distinguish clusters embedded into bigger clusters (case of "containment")<https://pair-code.github.io/understanding-umap/>, so the relatively recent FIt-SNE which largely outperforms traditional tSNE is a very good choice, not inferior to UMAP. A new version of FIt-SNE (v.1.2) exists but as no r wrapper is available to date,  previous version (v1.1.0) has been used for homeostasis (D0) analysis of published papers in this repo.
+
+#### Installing FIt-SNE 
+
+#### Step 1. Fourier transform
 FIt-SNE Requires Fourier trasform algorithm, as indicated here:
 http://www.fftw.org/fftw3_doc/Installation-on-Unix.html#Installation-on-Unix
 
 * From Terminal, download the ftp `fftw-3.3.8`, extract, go inside and compile: 
 
 ```
-$ cd programsSingleCell
+$ cd programsSC
 $ wget http://www.fftw.org/fftw-3.3.8.tar.gz
 $ tar xvzf fftw-3.3.8.tar.gz
 $ cd fftw-3.3.8
@@ -21,12 +28,12 @@ $ sudo su
 ```
 If `make` doesn't work, do `gmake`. Typically requires root privileges (unless you specify a different install directory with the `--prefix` flag to `configure`)
 
-## Step 2. FIt-SNE 
+#### Step 2. FIt-SNE 
 
 We are going to use R implementation, from repo https://github.com/KlugerLab/FIt-SNE
 
 ```
-$ cd programsSingleCell
+$ cd programsSC
 $ git clone https://github.com/KlugerLab/FIt-SNE.git
 $ cd FIt-SNE/
 $ sudo su
