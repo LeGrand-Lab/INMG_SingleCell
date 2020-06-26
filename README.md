@@ -6,7 +6,7 @@
 
 **UMAP vs FIt-SNE**
 
-For clusters visualization algorithms, UMAP and FIt-SNE have demonstrated their superiority, with an slight advantage of UMAP in terms of time and consistence. However some authors highlight the capacity of tSNE to distinguish clusters embedded into bigger clusters (case of "containment")<https://pair-code.github.io/understanding-umap/>, so the relatively recent FIt-SNE which largely outperforms traditional tSNE is a very good choice, not inferior to UMAP. A new version of FIt-SNE (v.1.2) exists but as no r wrapper is available to date,  previous version (v1.1.0) has been used for homeostasis (D0) analysis of published papers in this repo.
+Among cluster visualization algorithms, UMAP and FIt-SNE have demonstrated their superiority, with an slight advantage of UMAP in terms of time and consistence. However some authors highlight the capacity of tSNE to distinguish clusters embedded into bigger clusters (case of "containment")<https://pair-code.github.io/understanding-umap/>, so the relatively recent FIt-SNE which largely outperforms traditional tSNE is a very good choice, not inferior to UMAP. A new version of FIt-SNE (v.1.2) exists but as no r wrapper is available to date,  previous version (v1.1.0) has been used for homeostasis (D0) analysis of published papers in this repo.
 
 #### Installing FIt-SNE 
 
