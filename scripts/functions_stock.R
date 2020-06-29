@@ -36,3 +36,17 @@ KNNplusFITSNE <- function(seu, nbDIM, resolu, perplex){
    return(seu)
 }
 
+
+customTransferLabels <- function(markersDF, refDF, NBtop)  {
+  # this function takes two dataframe (markers, Areference) and an integer:
+  #   (how many top positive markers from markers tibble to use)
+  # return vector string having celltypes, levels corresponding to cluster numbers:
+  topmarkersDF <- markersDF %>% group_by(cluster) %>% top_n(n=NBtop,wt=avg_logFC)
+  joined <- left_join(topmarkersDF, refDF, by = "gene") %>%
+    select("cluster","gene","clusternames","avg_logFC") %>% distinct()
+  bestmatch <- joined %>% group_by(cluster) %>%
+    summarize(clusternames=names(which.max(table(clusternames))))
+  vec = bestmatch$clusternames
+  names(vec) = bestmatch$cluster
+  return(vec)
+}
