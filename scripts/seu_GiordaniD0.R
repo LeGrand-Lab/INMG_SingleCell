@@ -3,10 +3,11 @@ library(dplyr)
 library(Seurat)
 library(ggplot2)
 library(RColorBrewer)
+source(file="~/INMG_SingleCell/scripts/functions_stock.R",local=T)
 ## VERY USEFUL: 
 #https://satijalab.org/seurat/v3.0/merge_vignette.html
-
-source(file="~/INMG_SingleCell/scripts/functions_stock.R",local=T)
+# --
+# JohaGL
 
 prloc="~/INMG_SingleCell/"
 setwd(prloc)
@@ -16,12 +17,10 @@ dir.create(resu,recursive = T)
 rdsdir = "rds/GiordaniD0/"
 dir.create(rdsdir,recursive = T)
 
-
 wt1 <- read.csv(paste0("data/GiordaniD0/GSM3520458_20171018_uninjured_wt_filtered.csv"), 
                 sep=",", header=TRUE, row.names=1)
 wt2 <- read.csv(paste0("data/GiordaniD0/GSM3520459_20180917_uninjured_wt_filtered.csv"),
                 sep=",", header=TRUE, row.names=1)
-
 
 gio1 <- CreateSeuratObject(wt1, project="Giordani", min.cells=3, min.features=200 )
 gio1
@@ -53,7 +52,6 @@ mycols <- colorRampPalette(brewer.pal(8, "Set2"))(nb.clus)
 
 gio.markers <- FindAllMarkers(gio, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
 
-
 topn <- gio.markers %>% group_by(cluster) %>% top_n(n = 4, wt = avg_logFC)
 
 # print results (plots)
@@ -68,7 +66,6 @@ dev.off()
 
 # save .rds object
 saveRDS(gio,file=paste0(rdsdir,"gio_seu_fitsne.rds"))
-
 
 #write table of all markers
 write.table(gio.markers, paste0(resu,"ALLMARKERS_GiordaniD0.txt"))

@@ -1,9 +1,10 @@
 #!/usr/bin/env Rscript
+# --
+# JohaGL
 library(dplyr)
 library(Seurat)
 library(ggplot2)
 library(RColorBrewer)
-
 source(file="~/INMG_SingleCell/scripts/functions_stock.R",local=T)
 
 prloc="~/INMG_SingleCell/"
@@ -13,7 +14,6 @@ resu = "results/DeMicheliD0/"
 dir.create(resu,recursive = T)
 rdsdir = "rds/DeMicheliD0/"
 dir.create(rdsdir,recursive = T)
-
 
 dmizerol <- read.table(paste0("data/DeMicheliD0/rawdataD0.txt"), sep="\t",
                        header=T, row.names=1)

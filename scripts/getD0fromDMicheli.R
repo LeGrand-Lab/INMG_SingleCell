@@ -1,8 +1,9 @@
 ## Get DeMichelli D0 data
 # From GEO .txt matrix
+# --
+# JohaGL
 
 library(dplyr)
-#library(tibble)
 library(Seurat)
 
 prloc="~/INMG_SingleCell/"

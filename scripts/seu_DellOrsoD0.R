@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+# --
+# JohaGL
 library(dplyr)
 library(Seurat)
 library(ggplot2)
@@ -13,7 +15,6 @@ resu = "results/DellOrsoD0/"
 dir.create(resu,recursive = T)
 rdsdir = "rds/DellOrsoD0/"
 dir.create(rdsdir,recursive = T)
-
 
 dorso1.data <- Read10X(data.dir=paste0("data/DellOrsoD0/dorsowt1"))
 dorso2.data <- Read10X(data.dir=paste0("data/DellOrsoD0/dorsowt2"))
@@ -62,7 +63,7 @@ dev.off()
 # save .rds object
 saveRDS(dorso,file=paste0(rdsdir,"dorso_seu_fitsne.rds"))
 #write table of all markers
-write.table(dmizero.markers, paste0(resu,"ALLMARKERS_DellOrsoD0.txt"))
+write.table(dorso.markers, paste0(resu,"ALLMARKERS_DellOrsoD0.txt"))
 print("finished")
 print("finished")
 

@@ -4,12 +4,13 @@
 #   txt file => reference markers
 #   rds file 
 # output : .rds file containing corresponding celltypes (vector)
+#         and figures
+# --
+# JohaGL
 library(dplyr)
 library(Seurat)
 library(ggplot2)
 library(RColorBrewer)
-
-# to import function customTransferLabels:
 source(file="~/INMG_SingleCell/scripts/functions_stock.R",local=T)
 
 prloc="~/INMG_SingleCell/"
@@ -28,27 +29,6 @@ head(refDF,n=2)
 
 outsuffix="celltype_Vector.rds"
 
-# Functions to apply only locally, saves vector into .rds :
-doCustomImputeCelltype <- function(resu, rdsdir, seufile,
-                                   markersinresults, delimiter, outsuffix){
-  seu <-readRDS(paste0(rdsdir,seufile))
-  markersDF <- read.table(paste0(resu, markersinresults ), 
-                          sep=delimiter,
-                          header=TRUE)
-  
-  matchedtypes <- customTransferLabels(markersDF,refDF, 6) #using 6top+ markers
-  seu <- RenameIdents(seu, matchedtypes)
-  # save 'matchedtypes', a vector compatible with ..._seu_fitsne.rds
-  saveRDS(matchedtypes, file=paste0(rdsdir,outsuffix))
-  return(seu)
-}
-
-definecolors <- function(celltype){
-  c <- colorRampPalette(brewer.pal(8,"Set2"))(length(levels(celltype)))
-  return(c)
-}
-
-
 # ================================================================================
 # imputing cell types to Giordani D0:
 # ================================================================================
@@ -58,8 +38,8 @@ rdsdir = "rds/GiordaniD0/" # >> check
 seufile = "gio_seu_fitsne.rds"   # >> check
 markersinresults = "ALLMARKERS_GiordaniD0.txt"   # >> check
 
-giotypeseu <- doCustomImputeCelltype(resu,rdsdir,seufile,markersinresults,
-                                     delimiter, outsuffix)
+giotypeseu <- doCustomImputeCelltype(refDF, resu, markersinresults, delimiter,
+                                     rdsdir, seufile, outsuffix)
 pdf(paste0(resu, "FITSNE_named.pdf"))
 DimPlot(giotypeseu, label=T,repel=T, 
         cols=definecolors(giotypeseu@active.ident))+
@@ -78,8 +58,8 @@ seufile2 = "dmizero_seu_fitsne.rds"   # >> check
 markersinresults2 = "ALLMARKERS_DeMicheliD0.txt"   # >> check
 delimiter = " " # space delimited results/../ALLMARKERS_....txt
 
-demichtypeseu <- doCustomImputeCelltype(resu2,rdsdir2,seufile2,markersinresults2,
-                                     delimiter, outsuffix)
+demichtypeseu <- doCustomImputeCelltype(refDF,resu2,markersinresults2, delimiter,
+                                        rdsdir2,seufile2, outsuffix)
 pdf(paste0(resu2, "FITSNE_named.pdf"))
 DimPlot(demichtypeseu, label=T,repel=T, 
         cols=definecolors(demichtypeseu@active.ident))+
@@ -97,9 +77,9 @@ seufile3 = "dorso_seu_fitsne.rds"   # >> check
 markersinresults3 = "ALLMARKERS_DellOrsoD0.txt"   # >> check
 delimiter = " " # space delimited results/../ALLMARKERS_....txt
 
-dorsotypeseu <- doCustomImputeCelltype(resu3,rdsdir3,seufile3,markersinresults3,
-                                    delimiter, outsuffix)
-print("for DellOrso: ERROR because ALLMARKERS_DellOrsoD0.txt does not exist")
+dorsotypeseu <- doCustomImputeCelltype(refDF, resu3, markersinresults3, delimiter,
+                                       rdsdir3, seufile3, outsuffix)
+
 
 pdf(paste0(resu3, "FITSNE_named.pdf"))
 DimPlot(dorsotypeseu, label=T,repel=T, 

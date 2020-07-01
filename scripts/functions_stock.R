@@ -17,7 +17,7 @@ NormFeatScalePCA <- function(seu, nFeatRNA, percentmit){
 }
 
 
-KNNplusFITSNE <- function(seu, nbDIM, resolu, perplex){
+KNNplusFITSNE <- function(seu, nbDIM, resolu){
   #note: more resolution more groups,range 0.4-1.12
   seu <- FindNeighbors(seu, dims=1:nbDIM)
   seu <- FindClusters(seu, resolution=resolu)
@@ -36,6 +36,11 @@ KNNplusFITSNE <- function(seu, nbDIM, resolu, perplex){
    return(seu)
 }
 
+definecolors <- function(celltype){ 
+  # celltype is: seu@active.idents OR seu@meta.data$celltype
+  c <- colorRampPalette(brewer.pal(8,"Set2"))(length(levels(celltype)))
+  return(c)
+}
 
 customTransferLabels <- function(markersDF, refDF, NBtop)  {
   # this function takes two dataframe (markers, Areference) and an integer:
@@ -50,3 +55,26 @@ customTransferLabels <- function(markersDF, refDF, NBtop)  {
   names(vec) = bestmatch$cluster
   return(vec)
 }
+
+
+doCustomImputeCelltype <- function(refDF, resu, markersinresults, delimiter,
+                                   rdsdir, seufile, outsuffix){
+  # Function for 'impute..' scripts, SAVES celltype_Vector.rds :
+  seu <-readRDS(paste0(rdsdir,seufile))
+  markersDF <- read.table(paste0(resu, markersinresults ), 
+                          sep=delimiter,
+                          header=TRUE)
+  if(length(colnames(markersDF)) < 2) {
+    print("ERROR: less than two columns in markersDF, delimiter is WRONG")
+    return(1)
+  }else {
+    matchedtypes <- customTransferLabels(markersDF,refDF, 6) #using 6top+ markers
+    seu <- RenameIdents(seu, matchedtypes)
+    # save 'matchedtypes', a vector compatible with ..._seu_fitsne.rds
+    print("saving celltypes (vector) specific to this seurat object into rds/")
+    saveRDS(matchedtypes, file=paste0(rdsdir,outsuffix))
+    return(seu) # returns seurat with clusters names
+  }
+}
+
+

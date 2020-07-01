@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 # Launch seurat+FItSNE on homeostasis data (D0)
 # each dataset independently
 # assumes compressed folders in 'data/'
@@ -30,14 +30,13 @@ done
 
 echo "cd data again"
 cd ../data
-for i in $(ls *.tar.gz);do
-  if [ ! -f ${i} ]; then
-    #tar -czvf ${i}".tar.gz" $i
-    echo "tar.gz not exists, re-compressing";
-  fi
+for d in */ ;do
+	if [ ! -f ${d%/}".tar.gz" ]; then
+		tar -czvf ${d%/}".tar.gz" $d
+	fi
 done
 
-echo "please remember NOT TO commit any uncompressed content from 'data/'"
+echo "please remember NOT TO commit any voluminous uncompressed content from 'data/'"
 
 echo "END"	
 
