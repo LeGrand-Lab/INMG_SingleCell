@@ -1,11 +1,12 @@
 # INTEGRATED ANALYSIS  ** Oprescu and DeMicheli **
 # Integrating Oprescu and DeMicheli D0 data. This is the main integration job, 
-# reason: both on tibialis anterior m, similar experimental design
+# reason: both on tibialis anterior, similar experimental design
 
 # --
 # JohaGL
 
 library(dplyr)
+library(tidyverse)
 library(Seurat)
 library(ggplot2)
 library(sctransform)
@@ -14,12 +15,20 @@ library(RColorBrewer)
 source(file="~/INMG_SingleCell/scripts/functions_stock.R",local=T)
 
 prloc="~/INMG_SingleCell/"
-setwd(prloc)
 resu="results/integratedD0_DeOp/"
 rdsdir = "rds/integratedD0_DeOp/"
+nbDIM=15
+resol=0.4
+projectstr= "Oprescu_D0"
+threshold = 0.5 #threshold log2foldChange for saving markers tables
+newfeat.intgr = 6000
+maxUMIop = 35000
+maxUMIde = 25000
+permit = 10
+
+setwd(prloc)
 dir.create(resu,recursive=T)
 dir.create(rdsdir, recursive=T)
-nbDIM=15
 
 print("Integrating Oprescu and DeMicheli D0 data. This is the main integration job, 
   reason: both on tibialis anterior m, similar experimental design")
@@ -28,7 +37,7 @@ print(paste0("Will use *",nbDIM,"* princ components (dims), accordingly to  ",
 
 opre.data <- read.table("data/OprescuD0/oprescu_Noninjured_raw.txt", sep="\t",
                         header=T, row.names = 1)
-opre <- CreateSeuratObject(opre.data, project="Oprescu", min.cells=3, min.features=200)
+opre <- CreateSeuratObject(opre.data, project=projectstr, min.cells=3, min.features=200)
 
 dmich.data <- read.table("data/DeMicheliD0/rawdataD0.txt", sep="\t",
                     header=T, row.names=1)
@@ -43,9 +52,6 @@ print("filter mitochondrial genes and low quality cells")
 opre [["percent.mt"]] <- PercentageFeatureSet(opre, pattern= "^mt-")
 dmich[["percent.mt"]] <- PercentageFeatureSet(dmich, pattern= "^mt-")
 
-maxUMIop = 35000
-maxUMIde = 25000
-permit = 10
 print(paste0("doing data filtering, admit max nbUMI: ", maxUMIop, " oprescu,  ",
              maxUMIde," demicheli. For both, admited mitochondrial % ",permit))
 opre <- subset(opre, subset=nFeature_RNA > 200 & nCount_RNA <= maxUMIop & percent.mt < permit)
@@ -54,8 +60,8 @@ dmich <- subset(dmich, subset=nFeature_RNA > 200 & nCount_RNA <= maxUMIde & perc
 
 # ====================================================================================
 # integration
-newfeat.intgr = 6000
-print(paste0("integrating, using nbfeatures= ",newfeat.integr)
+
+print(paste0("integrating, using nbfeatures= ",newfeat.integr))
 
 muscle.list <- c(opre,dmich)
 # preprocessing: log-normalisation and variable features
@@ -84,16 +90,19 @@ ElbowPlot(muscle.integrated)
 DimHeatmap(muscle.integrated, dims=1:30, cells = 500, balanced = TRUE)
 dev.off()
 
-muscle.integrated <- KNNplusFITSNE(muscle.integrated, nbDIM, 0.4)
+muscle.integrated <- KNNplusFITSNE(muscle.integrated, nbDIM, resol)
 saveRDS(muscle.integrated,file=paste0(rdsdir,"integrated_seu_fitsne.rds"))
-
+# =====================================================================================
+# also run UMAP (slot FITSNE kept available)
+# =====================================================================================
+muscle.integrated <- RunUMAP(muscle.integrated, umap.method="uwot", dims=1:nbDIM)
 # =====================================================================================
 # markers : both, positive and negative LFC
 # =====================================================================================
 muscle.integrated.markers <- FindAllMarkers(muscle.integrated, only.pos = FALSE, 
                                             min.pct = 0.25, logfc.threshold = 0.25) #time consuming
 # save into two tables:
-threshold = 0.5 #threshold for log2foldChange
+
 positive <- muscle.integrated.markers %>% filter(avg_logFC > threshold)
 negative <- muscle.integrated.markers %>% filter(avg_logFC < -threshold)
 
@@ -108,10 +117,15 @@ most.pos <- positive %>% group_by(cluster) %>% top_n(n=4, wt= avg_logFC)
 # preliminary plots into results
 # =====================================================================================
 
-pdf(paste0(resu,"FITSNE.pdf"))
+pdf(paste0(resu,"FITSNEandUMAP.pdf"))
 DimPlot(muscle.integrated, reduction="tsne", label=T,
-        cols=definecolors(muscle.integrated@active.ident)) + ggtitle("Integrated D0")
+        cols=definecolors(muscle.integrated@active.ident)) + 
+  ggtitle(str_replace(projectstr,"_",""))
+DimPlot(muscle.integrated, reduction="umap", label=T,
+        cols=definecolors(muscle.integrated@active.ident)) + 
+  ggtitle(str_replace(projectstr,"_",""))
 dev.off()
+
 pos4top <- positive %>% group_by(cluster) %>% top_n(n=4, wt= avg_logFC)
 pdf(paste0(resu,"HEATMAP.pdf"), width=13)
 DoHeatmap(muscle.integrated, features = pos4top$gene, 
@@ -122,12 +136,10 @@ print("finished")
 
 
 # ====================================================================================
-# 
+sink(paste0(resu,"sessionInfo.txt"), append=TRUE) 
+sink(paste0(resu,"sessionInfo.txt"), append=TRUE, type="message")
 sessionInfo()
-
-ctrans <- c( rgb(0.15, 0.34, 0.95, alpha=0.4),
-             rgb(0.4, 0.77, 0.50, alpha=0.5))
-DimPlot(object = muscle.integrated, cols=ctrans, reduction = "tsne",
-        group.by = "orig.ident")
+sink()
+sink(type="message")
 
 
