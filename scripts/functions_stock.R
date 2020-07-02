@@ -38,6 +38,7 @@ KNNplusFITSNE <- function(seu, nbDIM, resolu){
 
 definecolors <- function(celltype){ 
   # celltype is: seu@active.idents OR seu@meta.data$celltype
+  print("for information: argument vector MUST HAVE LEVELS")
   c <- colorRampPalette(brewer.pal(8,"Set2"))(length(levels(celltype)))
   return(c)
 }

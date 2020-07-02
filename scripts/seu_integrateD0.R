@@ -120,7 +120,6 @@ most.pos <- positive %>% group_by(cluster) %>% top_n(n=4, wt= avg_logFC)
 # =====================================================================================
 # preliminary plots into results
 # =====================================================================================
-nb.clus = max(as.integer(levels(muscle.integrated@meta.data$seurat_clusters)))+1
 pdf(paste0(resu,"FITSNE.pdf"))
 DimPlot(muscle.integrated, reduction="tsne", label=T,
         cols=definecolors(muscle.integrated@active.ident)) + ggtitle("Integrated D0")
@@ -131,3 +130,4 @@ DoHeatmap(muscle.integrated, features = pos4top$gene,
           group.colors=definecolors(muscle.integrated@active.ident)) 
 dev.off()
 
+print("finished")
