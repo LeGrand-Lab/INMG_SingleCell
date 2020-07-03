@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 # Impute cell types to D0 independent datasets
 # input: 
 #   txt file ==> all specific markers from experience
@@ -10,6 +11,7 @@
 library(dplyr)
 library(Seurat)
 library(ggplot2)
+library(tidyverse)
 library(RColorBrewer)
 source(file="~/INMG_SingleCell/scripts/functions_stock.R",local=T)
 
@@ -28,75 +30,80 @@ head(refDF,n=2)
 #         *-* end Global inputs *-*
 
 outsuffix="celltype_Vector.rds"
-
-# ================================================================================
-# imputing cell types to Giordani D0:
-# ================================================================================
-# 
-resu = "results/GiordaniD0/"  # >> check
-rdsdir = "rds/GiordaniD0/" # >> check
-seufile = "gio_seu_fitsne.rds"   # >> check
-markersinresults = "ALLMARKERS_GiordaniD0.txt"   # >> check
-
-giotypeseu <- doCustomImputeCelltype(refDF, resu, markersinresults, delimiter,
-                                     rdsdir, seufile, outsuffix)
-pdf(paste0(resu, "FITSNE_named.pdf"))
-DimPlot(giotypeseu, label=T,repel=T, 
-        cols=definecolors(giotypeseu@active.ident))+
-  ggtitle("Giordani D0")
-dev.off()
-
-# ================================================================================
-
-# ================================================================================
-# imputing cell types to DeMicheli D0:
-# ================================================================================
-
-resu2 = "results/DeMicheliD0/"  # >> check
-rdsdir2 = "rds/DeMicheliD0/" # >> check
-seufile2 = "dmizero_seu_fitsne.rds"   # >> check
-markersinresults2 = "ALLMARKERS_DeMicheliD0.txt"   # >> check
 delimiter = " " # space delimited results/../ALLMARKERS_....txt
-
-demichtypeseu <- doCustomImputeCelltype(refDF,resu2,markersinresults2, delimiter,
-                                        rdsdir2,seufile2, outsuffix)
-pdf(paste0(resu2, "FITSNE_named.pdf"))
-DimPlot(demichtypeseu, label=T,repel=T, 
-        cols=definecolors(demichtypeseu@active.ident))+
-  ggtitle("De Micheli D0")
-dev.off()
+# define an order for running the loop:
+authors = c("OprescuD0")
+# define vector .rds files SAME ORDER and assign names:
+rds.name = c("opre_seu_fitsne.rds")
+names(rds.name) = authors
 
 # ================================================================================
-
+# imputing cell types to each D0 :
 # ================================================================================
-# imputing cell types to DellOrso D0:
-# ================================================================================
-resu3 = "results/DellOrsoD0/"  # >> check
-rdsdir3 = "rds/DellOrsoD0/" # >> check
-seufile3 = "dorso_seu_fitsne.rds"   # >> check
-markersinresults3 = "ALLMARKERS_DellOrsoD0.txt"   # >> check
-delimiter = " " # space delimited results/../ALLMARKERS_....txt
 
-dorsotypeseu <- doCustomImputeCelltype(refDF, resu3, markersinresults3, delimiter,
-                                       rdsdir3, seufile3, outsuffix)
+print("checking vector as you defined it, to run analysis")
+print(rds.name)
 
+seulist <- list()
+seulist <- lapply(names(rds.name), function(p) doCustomImputeCelltype(
+                              refDF,
+                              paste0("results/",p,"/"),
+                              paste0("ALLMARKERS_",p,".txt"),
+                              delimiter, 
+                              paste0("rds/",p,"/"),
+                              as.character(rds.name[p]),
+                              outsuffix)
+         )
+print("generate DimPlot of each seurat named object")
+print("using mapply to parse 'seulist' and 'rds.name' matching indexes") 
+printorder <- mapply(function(seu,p){
+  print(seu)
+  pdf(paste0("results/",p,"/", "FITSNE_named.pdf"))
+  plo <- DimPlot(seu, label=T,repel=T, 
+          cols=definecolors(seu@active.ident))+
+    ggtitle(str_replace(p,"D0"," D0"))
+  print(plo) # MUST BE to print into file as needed 
+  dev.off()
+  return(p)}, seulist, names(rds.name)
+)
+print("order in which plots were saved :")
+print(printorder)
+print("")
+print("END")
+print("In subsequent jobs, to get seurat object with its respective cell type, 
+      open both (seu.rds and vector.rds) and use Seurat function 'RenameIdents'")
 
-pdf(paste0(resu3, "FITSNE_named.pdf"))
-DimPlot(dorsotypeseu, label=T,repel=T, 
-        cols=definecolors(dorsotypeseu@active.ident))+
-  ggtitle("DellOrso D0")
-dev.off()
-# ================================================================================
 # END
 # ================================================================================
 
-# === extended version used first time for giordani in place of the local Function:
+#  Previous version not using loop (dangerous, prone to errors):
+# # ================================================================================
+# # imputing cell types to Oprescu D0:
+# # ================================================================================
+# resu4 = "results/OprescuD0/"  # >> check
+# rdsdir4 = "rds/OprescuD0/" # >> check
+# seufile4 = "opre_seu_fitsne.rds"   # >> check
+# markersinresults4 = "ALLMARKERS_OprescuD0.txt"   # >> check
+# 
+# oprescutypeseu <- doCustomImputeCelltype(refDF, resu4, markersinresults4, delimiter,
+#                                        rdsdir4, seufile4, outsuffix)
+# 
+# pdf(paste0(resu4, "FITSNE_named.pdf"))
+# DimPlot(oprescutypeseu, label=T,repel=T, 
+#         cols=definecolors(oprescutypeseu@active.ident))+
+#   ggtitle("DellOrso D0")
+# dev.off()
+
+# ================================================================================
+# === NOTE :
+# ================================================================================
+# 'doCustomImputeCelltype'  does this (no function version):
+
 # markersDF <- read.table(paste0(resu, markersinresults ), 
 #                         sep=delimiter,
 #                         header=TRUE)
 # seu <-readRDS(paste0(rdsdir,seufile))
 # 
-# # use function from functions_stock.R :
 # matchedtypes <- customTransferLabels(markersDF,refDF, 6) #using 6top+ markers
 # print(tail(matchedtypes,n=3))
 # #  15                        16                        17 

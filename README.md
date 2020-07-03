@@ -12,7 +12,7 @@ Among cluster visualization algorithms, UMAP and FIt-SNE have demonstrated their
 
 #### Step 1. Fourier transform
 FIt-SNE Requires Fourier trasform algorithm, as indicated here:
-http://www.fftw.org/fftw3_doc/Installation-on-Unix.html#Installation-on-Unix
+http://www.fftw.org/fftw3_doc/Installation-on-Unix.html#Installation-on-Unix. For MacOS and Linux the installation follows exactly the same steps.
 
 * From Terminal, download the ftp `fftw-3.3.8`, extract, go inside and compile: 
 
@@ -41,6 +41,7 @@ $ sudo su
 ```
 Important information about latest releases (version 1.2.0, version 1.2.1): https://github.com/KlugerLab/FIt-SNE/releases
 
+Quoting Dr.Linderman (team KlugerLab):
 """
 Several changes to default FIt-SNE settings to make it more suitable for embedding large datasets.
 
@@ -53,7 +54,7 @@ Minor changes:
 -Late exaggeration start is set to the end of early exaggeration (if late exaggeration coefficient is provided).
 -Limiting max step size to 5 (solves problem encountered when learning rate set too high and attractive forces cause a small number of points to overshoot)
 
-""" *Dr. Linderman*
+""" 
 
 ----------
 References:
@@ -61,5 +62,7 @@ References:
 George C. Linderman, Manas Rachh, Jeremy G. Hoskins, Stefan Steinerberger, Yuval Kluger. (2019). Fast interpolation-based t-SNE for improved visualization of single-cell RNA-seq data. Nature Methods. 
 
 Kobak, D. & Berens, P. The art of using t-SNE for single-cell transcriptomics. Nat. Commun. 10, (2019).
-
+----------------
+----------------
+Johanna GL
 
