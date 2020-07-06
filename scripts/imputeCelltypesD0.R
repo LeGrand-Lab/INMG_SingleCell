@@ -18,7 +18,7 @@ source(file="~/INMG_SingleCell/scripts/functions_stock.R",local=T)
 prloc="~/INMG_SingleCell/"
 setwd(prloc)
 
-#          *-* Global inputs *-*
+#          *-* Vars *-*
 delimiter = " " # espaced delimited results/../ALLMARKERS_....txt
 #   Markers groups and celltypes as discussed with Dr Le Grand:
 ref = "refmarkers/newRefmarkersToCells_v1.txt" # >>check
@@ -27,14 +27,16 @@ head(refDF,n=2)
 #clusternames   gene
 #1 B_lymphocytes.CD4   Cd74
 #2 B_lymphocytes.CD4  Cd79a
-#         *-* end Global inputs *-*
+#      
 
 outsuffix="celltype_Vector.rds"
 delimiter = " " # space delimited results/../ALLMARKERS_....txt
 # define an order for running the loop:
-authors = c("OprescuD0")
+authors = c("DellOrsoD0", "DeMicheliD0",
+              "GiordaniD0","OprescuD0")
 # define vector .rds files SAME ORDER and assign names:
-rds.name = c("opre_seu_fitsne.rds")
+rds.name = c("dorso_seu_fitsne.rds","dmizero_seu_fitsne.rds",
+             "gio_seu_fitsne.rds","opre_seu_fitsne.rds")
 names(rds.name) = authors
 
 # ================================================================================

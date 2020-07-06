@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 # INTEGRATED ANALYSIS of three datasets, in homeostasis
 # following instructions from:
 # https://satijalab.org/seurat/pancreas_integration_label_transfer.html
@@ -20,64 +21,62 @@ rdsdir = "rds/integratedD0/"
 dir.create(resu,recursive=T)
 dir.create(rdsdir, recursive=T)
 nbDIM=13 
+nft = 2500
+resolution=0.5
 print(paste0("Will use *",nbDIM,"* princ components (dims), as we already runned this script", 
      "accordingly to elbowplot and good balance identities-nbclusters"))
+print(" ")
+print(paste0("this integration uses subset nFeature_RNA >",nft, 
+   "and mitochondrial features < 5 % ==> this is stringent"))
  
-# ====================================================================================
 # open files
-# --**--
+# --*1*--
+
+list.d.seu <- sapply(c("data/DellOrsoD0/dorsowt1","data/DellOrsoD0/dorsowt2"),
+  function(d){
+  tmp <- Read10X(data.dir=d)
+  seu <- CreateSeuratObject(tmp, project="DellOrso",min.cells = 3,min.features = 200)
+  return(seu) })
+dorso <- merge(list.d.seu[1], y=list.d.seu[2], 
+               add.cells.ids=c("wt1","wt2"),project="DellOrso")
+rm(list.d.seu)
+
+# --*2*--
+
+list.g.seu <- sapply(c("data/GiordaniD0/GSM3520458_20171018_uninjured_wt_filtered.csv",
+                       "data/GiordaniD0/GSM3520459_20180917_uninjured_wt_filtered.csv"), 
+                     function(g){
+  seu <- CreateSeuratObject(g, project="Giordani",min.cells = 3,min.features = 200)
+  return(seu) })
+gio <- merge(list.g.seu[1], y=list.g.seu[2], 
+             add.cell.ids=c("wt1","wt2"), project = "Giordani")
+rm(list.g.seu)
+
+# --*3*--
+
 dmizerol <- read.table(paste0("data/DeMicheliD0/rawdataD0.txt"), sep="\t",
                        header=T, row.names=1)
 dmich <- CreateSeuratObject(dmizerol, project="DeMicheli", min.cells=3, min.features=200)
 rm(dmizerol)
-# --**--
-dorso1.data <- Read10X(data.dir=paste0("data/DellOrsoD0/dorsowt1"))
-dorso2.data <- Read10X(data.dir=paste0("data/DellOrsoD0/dorsowt2"))
-
-dorso1 <- CreateSeuratObject(dorso1.data, project="DellOrso", min.cells=3, min.features=200)
-dorso2 <- CreateSeuratObject(dorso2.data, project="DellOrso", min.cells=3, min.features=200)
-rm(dorso1.data)
-rm(dorso2.data)
-dorso <- merge(dorso1,y=dorso2, add.cells.ids=c("wt1","wt2"),project="DellOrso")
-rm(dorso1)
-rm(dorso2)
-# --**--
-wt1 <- read.csv(paste0("data/GiordaniD0/GSM3520458_20171018_uninjured_wt_filtered.csv"), 
-                sep=",", header=TRUE, row.names=1)
-wt2 <- read.csv(paste0("data/GiordaniD0/GSM3520459_20180917_uninjured_wt_filtered.csv"),
-                sep=",", header=TRUE, row.names=1)
-gio1 <- CreateSeuratObject(wt1, project="Giordani", min.cells=3, min.features=200 )
-gio1
-gio2 <- CreateSeuratObject(wt2, project="Giordani", min.cells=3, min.features=200)
-gio2
-gio <- merge(gio1, y=gio2, add.cell.ids=c("wt1","wt2"), project = "Giordani")
-gio
-rm(wt1,wt2,gio1,gio2)
 # ====================================================================================
 print("adding metadata concerning origin of datasets")
 print("dellOrso METADATA already in object")
 gio@meta.data[["orig.ident"]] <- rep("Giordani", length( gio@meta.data[["orig.ident"]] ))
 dmich@meta.data[["orig.ident"]] <- rep("DeMicheli", length( dmich@meta.data[["orig.ident"]] ))
 # ====================================================================================
-print("filter mitochondrial genes and low quality cells")
-dmich[["percent.mt"]] <- PercentageFeatureSet(dmich, pattern= "^mt-")
-dorso[["percent.mt"]] <- PercentageFeatureSet(dorso, pattern= "^mt-")
-gio[["percent.mt"]] <- PercentageFeatureSet(gio, pattern= "^mt-")
 
-dmich <- subset(dmich, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
-dorso <- subset(dorso, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
-gio <- subset(gio, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
-
-# ====================================================================================
 # integration
+# ====================================================================================
+
 print("integrating")
 muscle.list <- c(dorso, gio, dmich)
-# preprocessing: log-normalisation and variable features
-for (i in 1:length(x=muscle.list)) {
-  muscle.list[[i]] <- NormalizeData(muscle.list[[i]],verbose=FALSE)
-  muscle.list[[i]] <- FindVariableFeatures(muscle.list[[i]], 
-                                           selection.method="vst",nfeatures=2500, verbose=FALSE)
-}
+muscle.list <- sapply(muscle.list, function(seu){
+  seu[["percent.mt"]] <- PercentageFeatureSet(seu,pattern="^mt-")
+  seu <- subset(seu, subset = nFeature_RNA > 200 & nFeature_RNA < nft & percent.mt < 5)
+  seu <- NormalizeData(seu,verbose=FALSE)
+  seu <- FindVariableFeatures(seu, selection.method="vst",nfeatures=nft, verbose=FALSE)
+  return(seu)}
+)
 muscle.anchors <- FindIntegrationAnchors(object.list = muscle.list, dims=1:30)
 muscle.integrated <- IntegrateData(anchorset = muscle.anchors, dims = 1:30)
 
@@ -97,7 +96,7 @@ ElbowPlot(muscle.integrated)
 DimHeatmap(muscle.integrated, dims=1:30, cells = 500, balanced = TRUE)
 dev.off()
 
-muscle.integrated <- KNNplusFITSNE(muscle.integrated, nbDIM, 0.5)
+muscle.integrated <- KNNplusFITSNE(muscle.integrated, nbDIM, resolution)
 saveRDS(muscle.integrated,file=paste0(rdsdir,"integrated_seu_fitsne.rds"))
 
 # =====================================================================================
