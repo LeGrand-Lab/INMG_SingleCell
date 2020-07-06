@@ -78,4 +78,27 @@ doCustomImputeCelltype <- function(refDF, resu, markersinresults, delimiter,
   }
 }
 
+NEWCustomImputeCelltype <- function(refDF, resu, markersinresults, delimiter,
+                                   rdsdir, seufile, outsuffix, NBtop){
+  # Function for 'impute..' scripts, SAVES celltype_Vector.rds :
+  seu <-readRDS(paste0(rdsdir,seufile))
+
+  markersDF <- read.table(paste0(resu, markersinresults ), 
+                          sep=delimiter,
+                          header=TRUE)
+  if(length(colnames(markersDF)) < 2) {
+    print("ERROR: less than two columns in markersDF, delimiter is WRONG")
+    return(1)
+  }else {
+    matchedtypes <- customTransferLabels(markersDF,refDF, 6) #using 6top+ markers
+    seu <- RenameIdents(seu, matchedtypes)
+    # save 'matchedtypes', a vector compatible with ..._seu_fitsne.rds
+    print("saving celltypes (vector) specific to this seurat object into rds/")
+    saveRDS(matchedtypes, file=paste0(rdsdir,outsuffix))
+    top.mk <- markersDF %>% group_by(cluster) %>% top_n(n=NBtop,wt=avg_logFC)
+    mylist <- list(seu,top.mk)
+    names(mylist) <- c("seu", "top.mk")
+    return(list(seu, top.mk)) # returns seurat AND top markers
+  }
+}
 
