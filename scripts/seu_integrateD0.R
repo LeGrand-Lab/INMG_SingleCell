@@ -37,7 +37,7 @@ list.d.seu <- sapply(c("data/DellOrsoD0/dorsowt1","data/DellOrsoD0/dorsowt2"),
   tmp <- Read10X(data.dir=d)
   seu <- CreateSeuratObject(tmp, project="DellOrso",min.cells = 3,min.features = 200)
   return(seu) })
-dorso <- merge(list.d.seu[1], y=list.d.seu[2], 
+dorso <- merge(list.d.seu[[1]], y=list.d.seu[[2]], 
                add.cells.ids=c("wt1","wt2"),project="DellOrso")
 rm(list.d.seu)
 
@@ -46,9 +46,10 @@ rm(list.d.seu)
 list.g.seu <- sapply(c("data/GiordaniD0/GSM3520458_20171018_uninjured_wt_filtered.csv",
                        "data/GiordaniD0/GSM3520459_20180917_uninjured_wt_filtered.csv"), 
                      function(g){
+    g = read.csv(g, sep=",", header=TRUE, row.names=1)
   seu <- CreateSeuratObject(g, project="Giordani",min.cells = 3,min.features = 200)
   return(seu) })
-gio <- merge(list.g.seu[1], y=list.g.seu[2], 
+gio <- merge(list.g.seu[[1]], y=list.g.seu[[2]], 
              add.cell.ids=c("wt1","wt2"), project = "Giordani")
 rm(list.g.seu)
 
