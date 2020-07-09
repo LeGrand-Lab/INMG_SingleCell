@@ -4,10 +4,13 @@
 # johaGL
 library(tidyverse)
 library(Seurat)
+library(cowplot)
+library(RColorBrewer)
 
 prloc="~/INMG_SingleCell/"
 setwd(prloc)
-
+resu = "results/integratedD0/DCscran/"
+system(paste0("mkdir ", prloc, resu))
 load("rds/doubletsD0/plotdoublet.RData")  # plotdoublet
 head(plotdoublet)
 # load the seurat object and celltype vectors
@@ -46,7 +49,10 @@ a <- DimPlot(integrated.musD0, group.by = "doubletclass",
 b <- DimPlot(integrated.musD0, cols=
                colorRampPalette(brewer.pal(8,"Set2"))(length(levels(integrated.musD0@active.ident))),
              label=T, repel=T, size=3)
+pdf(paste0(resu, "williamMethodVisual.pdf"), width=13)
 plot_grid(a,b)
+dev.off()
+
 
 # HOW WE EXPLORED SUBSTRINGS ALONG BARCODES VECTORS
 # unique(substr(plotdoublet$id, 19,20))

@@ -6,11 +6,11 @@ library(scater)
 library(SingleCellExperiment)
 
 setwd("~/INMG_SingleCell/")
-resu = "/results/intgratedD0/"
+resu = "results/integratedD0/DCscran/"
 seu <- readRDS("rds/integratedD0/integrated_seu_fitsne.rds")
 veccell <- readRDS("rds/integratedD0/integr_celltype_Vector.rds")
 seu <- RenameIdents(seu,veccell)
-
+seu@meta.data$celltype = seu@active.ident
 # do not use as.SingleCellExperiment, instead create from scratch:
 dgcmatrix <- seu@assays[["RNA"]]@counts
 head(colnames(dgcmatrix)) 
@@ -34,26 +34,30 @@ sce <- scater::addPerFeatureQC(sce)
 
 head(rowData(sce))
 
-plotdet <- scater::plotColData(sce,x="sum",y="detected")
-pdf(paste0(resu,"plotColData_sumVSdetected.pdf"))
-plotdet
-dev.off()
-
 print("Finding doublets")
-sce <- computeSumFactors(sce)
-
+sce <- computeSumFactors(sce) # by scran: scaling normalization (implements deconvolution)
 sce <- logNormCounts(sce)
-
 dbl_dens <- doubletCells(sce)
 sce$doublet_score <- 0
 sce$doublet_score <- log10(dbl_dens + 1)
 
-pdf(paste0(resu, "tsne_doublets.pdf"))
-plotTSNE(sce, colour_by="doublet_score")
+sce <- runTSNE(sce, perplexity=150, PCA=T, num_threads=4)
+
+f <- scater::plotColData(sce, x="sum",y="detected",colour_by="doublet_score")
+t <- plotTSNE(sce, colour_by="doublet_score")
+o <- plotTSNE(sce, colour_by="orig.ident")
+g <- plotTSNE(sce, colour_by="celltype")
+pdf("results/integratedD0/DCscran/tsne_sce.pdf", width=12)
+plot_grid(f,t,o,g, ncol=2)
 dev.off()
 
-pdf(paste0(resu, "feat_doublets.pdf"))
-detfeat <- scater::plotColData(sce, x="sum",y="detected",colour_by="doublet_score")
-dev.off()
+saveRDS(sce, "rds/doubletsD0/mysce_doublets.rds")
 
-saveRDS(sce, "mysce_doublets.rds")
+# sce <- readRDS("rds/doubletsD0/mysce_doublets.rds")
+# transfer FItSNE:
+head(sce@int_colData@listData[["reducedDims"]]@listData[["TSNE"]])
+head(seu@reductions[["tsne"]]@cell.embeddings)
+typeof(sce@int_colData@listData[["reducedDims"]]@listData[["TSNE"]])
+typeof(seu@reductions[["tsne"]]@cell.embeddings)
+
+
