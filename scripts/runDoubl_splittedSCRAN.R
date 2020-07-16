@@ -14,75 +14,20 @@ library(ggplot2)
 library(RColorBrewer)
 library(cowplot)
 
-
 prloc="~/INMG_SingleCell/"
 setwd(prloc)
-outdir = "rds/doubletsD0spli_sce/"
+rdsdir = "rds/doubletsD0spli_SCRAN/"
+outdir = "qcdoubl/spli_SCRAN/"
 dir.create(outdir, recursive=T)
+dir.create(rdsdir, recursive=T)
+#load functions : rundoublets_scran and others
+source(file="~/INMG_SingleCell/scripts/functions_stock.R") 
+
+#doSplitDeMicheli("data/DeMicheliD0/", "rawdataD0.txt") # DONE (ONLY ONCE NEEDED)
 
 # ================================================================================
-
-doSplitDeMicheli <- function(datadirD, filenm){
-  dmizerol <- read.table(paste0(datadirD, filenm), sep="\t",
-                         header=T, row.names=1)
-  dim(dmizerol)
-  # see experiments on barcodes (colnames) prefixes:
-  myexps = unique(substring(colnames(dmizerol), first=1, last=5)) #"D0_A_" "D0_B_" "D0_Cv"
-  listofexps = sapply(myexps, function(x) {
-    select(dmizerol, starts_with(x))
-  })
-  listofexps <- setNames(listofexps,myexps)
-  nbcolssum = 0
-  for (i in 1:length(listofexps)){ nbcolssum = nbcolssum + dim(listofexps[[i]])[2]}
-  
-  if( (dim(dmizerol)[2]) == nbcolssum){
-    print(paste0("split operation sucessful, saving into ", datadirD))
-    lapply( names(listofexps), function(k) { 
-      write.table( listofexps[[k]],
-        paste0(datadirD, k,"DeMich.txt") , sep="\t", col.names = T);return(0)
-    })
-  }else{ print("errors in dimensions of splitted tables, check, nothing to save")
-    return(1)}
-}
-
-getMatrixFromtxt <- function(filepath){
-  m = read.table(filepath, sep="\t", header=T, row.names = 1)
-  return(as.matrix(m))
-}
-getMatrixFrom10X <- function(dirpath){
-  m = Read10X(data.dir=dirpath)
-  return(as.matrix(m))
-}
-getMatrixFromGio <- function(filepath){
-  m = read.csv( filepath, sep=",", header=TRUE, row.names=1)
-  return(as.matrix(m))
-}
-
-rundoublets <- function(sce){
-  rowData(sce) <- DataFrame(genes_names = rownames(sce))
-  rowData(sce)$expressed <- scater::nexprs(sce,byrow=TRUE)>0
-  per_cell <- perCellQCMetrics(sce[rowData(sce)$expressed,])
-  colData(sce) <- cbind(colData(sce),per_cell)
-  head(rowData(sce))
-  colData(sce)$keep_total <- scater::isOutlier(colData(sce)$sum,type = "lower", log=TRUE)
-  table(colData(sce)$keep_total) # TRUE are OUTLIERS
-  sce <- scater::addPerFeatureQC(sce)
-  print("Finding doublets")
-  sce <- computeSumFactors(sce) # by scran: scaling normalization (implements deconvolution)
-  sce <- logNormCounts(sce)
-  dbl_dens <- doubletCells(sce)
-  sce$doublet_score <- 0
-  sce$doublet_score <- log10(dbl_dens + 1)
-  sce <- runTSNE(sce, perplexity=50, PCA=T, num_threads=4)
-  return(sce)
-  }
-
+print("defining full paths raw splitted data")
 # ================================================================================
-### run:
-
-#doSplitDeMicheli("data/DeMicheliD0/", "rawdataD0.txt")
-
-# define full paths :
 dmichs <- list.files("data/DeMicheliD0/", pattern="DeMich.txt", full.names = T)
 gios <-  list.files("data/GiordaniD0", pattern="\\.csv$", full.names= T)
 dorsos <- list.files("data/DellOrsoD0", full.names=T) # subfolders inthere
@@ -93,13 +38,14 @@ names(gios) <- sapply(gios, function(x) { lf = strsplit(x, "_");lf=strsplit(lf[[
 names(dorsos) = list.files("data/DellOrsoD0") # NOT full.names  
 
 ALLFILESTORUN =c(dmichs,gios,dorsos)
-prin("defining type of dataset (author), same order as in ALLFILESTORUN")
+print("defining type of dataset (author), same order as in ALLFILESTORUN")
 typesauth <- c(rep("dmich",length(dmichs)) ,  rep("gio",length(gios)) ,
                rep("dorso",length(dorsos)) )
 
-
+# ================================================================================
 print("Running analysis separately for each dataset")
-x <- mapply( function(x,y){
+# ================================================================================
+exitstatus <- mapply( function(x,y){
     if (y == "dmich"){
      mat =  getMatrixFromtxt(ALLFILESTORUN[[x]])
     }else if (y == "gio"){
@@ -109,23 +55,26 @@ x <- mapply( function(x,y){
     }
     sce <- SingleCellExperiment(assays=list(counts=as.matrix(mat)))
     print(sce)
-    sce <- rundoublets(sce)
+    sce <- rundoublets_scran(sce)
     scores = as.numeric(as.character(sce$doublet_score))
-    saveRDS(sce, paste0(outdir, x, ".rds"))
+    print(paste0("saving rds into ", rdsdir, x, ".rds"))
+    saveRDS(sce, paste0(rdsdir, x, ".rds"))
     f <- scater::plotColData(sce, x="sum",y="detected",colour_by="doublet_score")
     t <- plotTSNE(sce, colour_by="doublet_score")
-    pdf(paste0(outdir, x, "plot.pdf"), width=12)
+    pdf(paste0(rdsdir, x, "plot.pdf"), width=12)
     print(plot_grid(f,t))
     dev.off()
   return(0)
   }, names(ALLFILESTORUN), typesauth )
 
-# then open -One by one- the seven sce objects and do intervals
-# to create a dataframe : $barcode $author $doubletscore $doubinterval
-myrds = list.files("rds/doubletsD0spli_sce",pattern="\\.rds$", full.names = T)
+# ================================================================================
+print("creating dataframe : $barcode $author $doubletscore $doubinterval $classif")
+# ================================================================================
+# then open -One by one- the  sce objects :
+myrds = list.files("rds/doubletsD0spli_SCRAN",pattern="\\.rds$", full.names = T)
 
-outdf = data.frame(barcode=character(), author=character(),doublet_score=double(),doubinterval=factor(),
-                   classificat=factor())
+outdf = data.frame(barcode=character(), author=character(),doublet_score=double(),
+                   doubinterval=factor(), classificat=factor())
 
 for(i in 1:length(myrds)){
   sce <- readRDS(myrds[i])
@@ -136,21 +85,19 @@ for(i in 1:length(myrds)){
   
   top = quantile(sce$doublet_score, 0.995)
   mid = quantile(sce$doublet_score,0.95)
-  
-  tmp <- tmp %>% mutate(doubinterval = case_when(
-                          doublet_score >= top ~ paste0(as.character(round(top,1)), " to ", 
-                                                    as.character(round(max(doublet_score)),1), " :q ",names(top)),
-                          doublet_score > mid & doublet_score < top ~ paste0(
-                            as.character(round(mid,1))," to ", as.character(round(top,1)) ," :q ",names(mid)),
-                          TRUE ~ paste0(round(mid,1),"  and less") 
-                        ))
-  
+  tmp <- tmp %>% mutate( doubinterval = case_when(
+            doublet_score >= top ~ paste0(as.character(round(top,1)), " to ", 
+              as.character(round(max(doublet_score)),1), " :q ",names(top)),
+            doublet_score > mid & doublet_score < top ~ paste0(
+               as.character(round(mid,1))," to ", 
+               as.character(round(top,1)) ," :q ",names(mid)),
+               TRUE ~ paste0(round(mid,1),"  and less")) # end case_when 
+            ) # end mutate
   tmp <- tmp %>% mutate(classific = case_when(
     doublet_score >= top ~ "doublets high conf",
     doublet_score > mid & doublet_score < top ~ "doublets low conf",
     TRUE ~ "singlet"  
   ))
-  
   colData(sce)$doubinterval = tmp$doubinterval
   pdf(paste0(outdir, i, "_TEST.pdf"))
   plotTSNE(sce,colour_by = "doubinterval")
@@ -160,7 +107,9 @@ for(i in 1:length(myrds)){
   outdf$doubinterval = as.factor(outdf$doubinterval)
 }
 
-write.table(outdf, paste0(outdir,"TABLE_DOUBLETS_splitted.txt"), col.names = T)
+print(paste0("saving table into ", outdir))
+write.table(outdf, paste0(outdir,"TABLE_DOUBLETS_SCRAN_splitted.txt"), 
+            sep="\t", col.names = T)
 
 # ==========older version consumes too much memory:
 # # list of the different experiments

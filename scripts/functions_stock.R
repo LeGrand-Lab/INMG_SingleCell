@@ -16,7 +16,6 @@ NormFeatScalePCA <- function(seu, nFeatRNA, percentmit){
   return(seu)
 }
 
-
 KNNplusFITSNE <- function(seu, nbDIM, resolu){
   #note: more resolution more groups,range 0.4-1.12
   seu <- FindNeighbors(seu, dims=1:nbDIM)
@@ -56,7 +55,6 @@ customTransferLabels <- function(markersDF, refDF, NBtop)  {
   names(vec) = bestmatch$cluster
   return(vec)
 }
-
 
 doCustomImputeCelltype <- function(refDF, resu, markersinresults, delimiter,
                                    rdsdir, seufile, outsuffix){
@@ -100,5 +98,59 @@ NEWCustomImputeCelltype <- function(refDF, resu, markersinresults, delimiter,
     names(mylist) <- c("seu", "top.mk")
     return(list(seu, top.mk)) # returns seurat AND top markers
   }
+}
+
+rundoublets_scran <- function(sce){
+  rowData(sce) <- DataFrame(genes_names = rownames(sce))
+  rowData(sce)$expressed <- scater::nexprs(sce,byrow=TRUE)>0
+  per_cell <- perCellQCMetrics(sce[rowData(sce)$expressed,])
+  colData(sce) <- cbind(colData(sce),per_cell)
+  head(rowData(sce))
+  colData(sce)$keep_total <- scater::isOutlier(colData(sce)$sum,type = "lower", log=TRUE)
+  table(colData(sce)$keep_total) # TRUE are OUTLIERS
+  sce <- scater::addPerFeatureQC(sce)
+  print("Finding doublets")
+  sce <- computeSumFactors(sce) # by scran: scaling normalization (implements deconvolution)
+  sce <- logNormCounts(sce)
+  dbl_dens <- doubletCells(sce) # *scran* doubletCells function
+  sce$doublet_score <- 0
+  sce$doublet_score <- log10(dbl_dens + 1)
+  sce <- runTSNE(sce, perplexity=50, PCA=T, num_threads=4)
+  return(sce)
+}
+
+getMatrixFromtxt <- function(filepath){
+  m = read.table(filepath, sep="\t", header=T, row.names = 1)
+  return(as.matrix(m))
+}
+getMatrixFrom10X <- function(dirpath){
+  m = Read10X(data.dir=dirpath)
+  return(as.matrix(m))
+}
+getMatrixFromGio <- function(filepath){
+  m = read.csv( filepath, sep=",", header=TRUE, row.names=1)
+  return(as.matrix(m))
+}
+
+doSplitDeMicheli <- function(datadirD, filenm){
+  dmizerol <- read.table(paste0(datadirD, filenm), sep="\t",
+                         header=T, row.names=1)
+  dim(dmizerol)
+ print("NOTE: experiments on barcodes (colnames) prefixes")
+  myexps = unique(substring(colnames(dmizerol), first=1, last=5)) #"D0_A_" "D0_B_" "D0_Cv"
+  listofexps = sapply(myexps, function(x) {
+    select(dmizerol, starts_with(x))
+  })
+  listofexps <- setNames(listofexps,myexps)
+  nbcolssum = 0
+  for (i in 1:length(listofexps)){ nbcolssum = nbcolssum + dim(listofexps[[i]])[2] }
+  if( (dim(dmizerol)[2]) == nbcolssum){
+    print(paste0("split operation sucessful, saving into ", datadirD))
+    lapply( names(listofexps), function(k) { 
+      write.table( listofexps[[k]],
+                   paste0(datadirD, k,"DeMich.txt") , sep="\t", col.names = T);return(0)
+    })
+  }else{ print("errors in dimensions of splitted tables, check, nothing to save")
+    return(1)}
 }
 
