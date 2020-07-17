@@ -32,7 +32,7 @@ names(gios) <- sapply(gios, function(x) { lf = strsplit(x, "_");lf=strsplit(lf[[
 names(dmichs) = sapply(dmichs, function(x) { lf = strsplit(x, "/")
     key = str_replace(lf[[1]][ length(lf[[1]]) ], ".txt","")})
 # names() : serve as output filenames !!
-projectnames <- c("dorso1_wt1","dorso_wt2","gio_wt1","gio_wt2",rep("demichili",3))
+projectnames <- c("dorso1_wt1","dorso_wt2","gio_wt1","gio_wt2","demichili_D0_A", "demichili_D0_B", "demichili_D0_Cv3")
 # project as William wrote
 ALLFILESTORUN =c(dorsos,gios,dmichs)
 
@@ -41,37 +41,31 @@ ALLFILESTORUN =c(dorsos,gios,dmichs)
 print("running Seurat and DoubletFinder using same parameters as in prev test (test.R by William)")
 # ================================================================================
 
-# dorsos <- list.files("data/DellOrsoD0", full.names=T) # subfolders inthere
-# names(dorsos) = list.files("data/DellOrsoD0") # NOT full.names  
-# 
-# ALLFILESTORUN =c(dorsos)
-# projectnames <-  c("dorso1_wt1","dorso_wt2")
-
 metadf = data.frame(groupe=character(),nCount_RNA=integer(),nFeature_RNA=integer(),percent.mt=double(),
                     RNA_snn_res=factor(), cluster=factor(),pANN=double(),DFclass=character(),
-                    id=character(),UMAP_1=double(),UMAP_2=double(),TSNE_1=double(),TSNE_2=double())
+                    id=character(),UMAP_1=double(),UMAP_2=double(),TSNE_1=double(),TSNE_2=double(),
+                    sample=character())
 
 for (i in 1:length(projectnames)){
-  print(paste0("**** ", ALLFILESTORUN[i], " **** >> out:  ",rdsdir,x ))
   x = names(ALLFILESTORUN[i]); y=projectnames[i]
-  if (y == "demichili"){
-    mat =  getMatrixFromtxt(ALLFILESTORUN[[x]]) ; PROJ = y
+  print(paste0("**** ", ALLFILESTORUN[i], " **** >> out:  ",rdsdir,x ))
+  if (y == "dorso1_wt1" || y == "dorso_wt2"){
+    mat = getMatrixFrom10X(ALLFILESTORUN[[x]]) ; PROJ = y
   }else if (y == "gio_wt1" || y == "gio_wt2"){
     mat = getMatrixFromGio(ALLFILESTORUN[[x]]) ; PROJ = y
   }else {
-    mat = getMatrixFrom10X(ALLFILESTORUN[[x]]) ; PROJ = y
+    mat =  getMatrixFromtxt(ALLFILESTORUN[[x]]) ; PROJ= y 
   } 
   seu <- CreateSeuratObject(mat, project=PROJ, min.cells=3, min.features=200) 
-  
+  rm(mat)
   # **** NOTE  : trycatch concerns last sample ,
   #    D0_CvDeMich.txt, see end of code
   seu_filtered <- tryCatch({
     seu_filtered <- NormFeatScalePCA(seu, 2500, 5)
-    print("partie try")
+    return(seu_filtered)
   },error = function(err){
     seu_filtered <- NormFeatScalePCA(seu, 6000, 20)
   })
-  
   rm(seu)
   seu_filtered <- FindNeighbors(seu_filtered, dims = 1:10)
   seu_filtered <- FindClusters(seu_filtered, resolution = 0.5)
@@ -87,8 +81,7 @@ for (i in 1:length(projectnames)){
   seu_filtered <- doubletFinder_v3(seu_filtered, PCs = 1:10, pN = 0.25, pK = 0.09, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
   #seu_filtered <- doubletFinder_v3(seu_filtered, PCs = 1:10, pN = 0.25, pK = 0.09, nExp = nExp_poi.adj, reuse.pANN = "pANN_0.25_0.09_913", sct = FALSE)
   
-  saveRDS(seu_filtered, paste0(rdsdir,x, ".rds")) # 
-  
+  saveRDS(seu_filtered, paste0(rdsdir,x, ".rds"))
   umapdata=data.frame(seu_filtered@reductions$umap@cell.embeddings)
   tsnedata=data.frame(seu_filtered@reductions$tsne@cell.embeddings)
   metadata=seu_filtered@meta.data
@@ -103,15 +96,18 @@ for (i in 1:length(projectnames)){
                             "UMAP_1","UMAP_2","TSNE_1","TSNE_2")
   plotdoublet$DFclass[plotdoublet$DFclass %in% "Doublet" & plotdoublet$pANN <= 0.5]="Doublets - Low confidence"
   plotdoublet$DFclass[plotdoublet$DFclass %in% "Doublet" & plotdoublet$pANN > 0.5 ]="Doublets - High confidence"
+  
+  # new col: sample=> needed for prefixes:
+  plotdoublet$sample = rep( y,  length(plotdoublet$id) )
   metadf = rbind(metadf, plotdoublet)
 } 
 
-# metadf$groupe <- as.character(metadf$groupe)
-# plotdoublet$groupe[plotdoublet$groupe %in% "D0"]="demichelli"
-# plotdoublet$groupe[plotdoublet$groupe %in% "i1"]="giordani1"
-# plotdoublet$groupe[plotdoublet$groupe %in% "i2"]="giordani2"
-
 write.table(metadf, paste0(outdir, "TABLE_DOUBLFINDER_SPLITTED.txt"), sep="\t", col.names=T)
+
+
+
+
+
 
 # ================================================================================
 
@@ -126,7 +122,7 @@ write.table(metadf, paste0(outdir, "TABLE_DOUBLFINDER_SPLITTED.txt"), sep="\t", 
 # seu <- ScaleData(seu, features = all.genes)
 # seu_filtered <- RunPCA(seu,features=VariableFeatures(object = seu), npcs=5) # ==> tested several,npcs=5 finally ok
 
-# tested also CSTransform, did not work, in conclusion, there was the cell number, 
+# tested also CSTransform, did not work, in conclusion, THE PROBLEM WAS THE STRINGENT FILTERS, 
 # fixed as authors: up to 6000 feat admitted, up to 20% mitochondrial  :
 
 
