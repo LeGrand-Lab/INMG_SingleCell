@@ -37,21 +37,19 @@ names(gios) <- sapply(gios, function(x) { lf = strsplit(x, "_");lf=strsplit(lf[[
             key = lf[[1]][ length(lf[[1]]) ] }) # like 'GSM3520458'
 names(dorsos) = list.files("data/DellOrsoD0") # NOT full.names  
 
-ALLFILESTORUN =c(dmichs,gios,dorsos)
-print("defining type of dataset (author), same order as in ALLFILESTORUN")
-typesauth <- c(rep("dmich",length(dmichs)) ,  rep("gio",length(gios)) ,
-               rep("dorso",length(dorsos)) )
+ALLFILESTORUN =c(dorsos, gios, dmichs)
+
 
 # ================================================================================
 print("Running analysis separately for each dataset")
 # ================================================================================
-exitstatus <- mapply( function(x,y){
-    if (y == "dmich"){
-     mat =  getMatrixFromtxt(ALLFILESTORUN[[x]])
-    }else if (y == "gio"){
+exitstatus <- lapply( names(ALLFILESTORUN), function(x) {
+    if (x == "dorsowt1" | x == "dorsowt2"){
+      mat = getMatrixFrom10X(ALLFILESTORUN[[x]])
+     }else if (x == "GSM3520458" | x == "GSM3520459"){
       mat = getMatrixFromGio(ALLFILESTORUN[[x]])
     }else {
-      mat = getMatrixFrom10X(ALLFILESTORUN[[x]])
+      mat =  getMatrixFromtxt(ALLFILESTORUN[[x]])
     }
     sce <- SingleCellExperiment(assays=list(counts=as.matrix(mat)))
     print(sce)
@@ -65,46 +63,52 @@ exitstatus <- mapply( function(x,y){
     print(plot_grid(f,t))
     dev.off()
   return(0)
-  }, names(ALLFILESTORUN), typesauth )
+  } )
+
+exitstatus <- lapply( names(ALLFILESTORUN), function(x) {
+  if (x == "dorsowt1" | x == "dorsowt2"){
+    #mat = getMatrixFrom10X(ALLFILESTORUN[[x]])
+  }else if (x == "GSM3520458" | x == "GSM3520459"){
+    #mat = getMatrixFromGio(ALLFILESTORUN[[x]])
+  }else {
+    #mat =  getMatrixFromtxt(ALLFILESTORUN[[x]])
+  }
+  print(x)
+  #sce <- readRDS(paste0("saving rds into ", rdsdir, x, ".rds"))
+  
+  return(0)
+} )
+
 
 # ================================================================================
-print("creating dataframe : $barcode $author $doubletscore $doubinterval $classif")
+print("creating dataframe : $barcode $filerds $doubletscore $classific")
 # ================================================================================
 # then open -One by one- the  sce objects :
-myrds = list.files("rds/doubletsD0spli_SCRAN",pattern="\\.rds$", full.names = T)
 
-outdf = data.frame(barcode=character(), author=character(),doublet_score=double(),
-                   doubinterval=factor(), classificat=factor())
+outdf = data.frame(barcode=character(), filerds=character(),doublet_score=double(),
+                   doubinterval=factor(), classifQ92.5=factor(), classifQ95=factor())
+# check rds files to run in desired order:
+for(i in 1:length(ALLFILESTORUN)){
+  print(file.exists(paste0(rdsdir, names(ALLFILESTORUN[i]),".rds")))
+}
 
-for(i in 1:length(myrds)){
-  sce <- readRDS(myrds[i])
+for(i in 1:length(ALLFILESTORUN)){
+  sce <- readRDS( paste0(rdsdir, names(ALLFILESTORUN[i]),".rds") )
   dim(sce)
   tmp = data.frame(  barcode= rownames(colData(sce)),
-                   author = rep(typesauth[i], length(rownames(colData(sce)))),
+                   filerds = rep(names(ALLFILESTORUN[i]), length(rownames(colData(sce)))),
                 doublet_score = colData(sce)$doublet_score  )
-  
-  top = quantile(sce$doublet_score, 0.995)
-  mid = quantile(sce$doublet_score,0.95)
-  tmp <- tmp %>% mutate( doubinterval = case_when(
-            doublet_score >= top ~ paste0(as.character(round(top,1)), " to ", 
-              as.character(round(max(doublet_score)),1), " :q ",names(top)),
-            doublet_score > mid & doublet_score < top ~ paste0(
-               as.character(round(mid,1))," to ", 
-               as.character(round(top,1)) ," :q ",names(mid)),
-               TRUE ~ paste0(round(mid,1),"  and less")) # end case_when 
-            ) # end mutate
+  Q95 = quantile(sce$doublet_score,0.95)
+  Q92.5 = quantile(sce$doublet_score, 0.925)
+
   tmp <- tmp %>% mutate(classific = case_when(
-    doublet_score >= top ~ "doublets high conf",
-    doublet_score > mid & doublet_score < top ~ "doublets low conf",
+    doublet_score >= Q95 ~ "doublets high conf",
+    doublet_score > Q92.5 & doublet_score < Q95 ~ "doublets low conf",
     TRUE ~ "singlet"  
   ))
-  colData(sce)$doubinterval = tmp$doubinterval
-  pdf(paste0(outdir, i, "_TEST.pdf"))
-  plotTSNE(sce,colour_by = "doubinterval")
-  dev.off()
-  plotReducedDim(sce, dimred="TSNE", colour_by = "doubinterval")
+
   outdf <- rbind(outdf, tmp)
-  outdf$doubinterval = as.factor(outdf$doubinterval)
+
 }
 
 print(paste0("saving table into ", outdir))
