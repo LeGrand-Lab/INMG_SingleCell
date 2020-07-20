@@ -43,8 +43,8 @@ definecolors <- function(celltype){
 }
 
 customTransferLabels <- function(markersDF, refDF, NBtop)  {
-  # this function takes two dataframe (markers, Areference) and an integer:
-  #   (how many top positive markers from markers tibble to use)
+  # this function takes two dataframe (markers, Areference) and an integer
+  # (i.e. how many top positive markers from markers tibble to use);
   # return vector string having celltypes, levels corresponding to cluster numbers:
   topmarkersDF <- markersDF %>% group_by(cluster) %>% top_n(n=NBtop,wt=avg_logFC)
   joined <- left_join(topmarkersDF, refDF, by = "gene") %>%
@@ -100,24 +100,6 @@ NEWCustomImputeCelltype <- function(refDF, resu, markersinresults, delimiter,
   }
 }
 
-rundoublets_scran <- function(sce){
-  rowData(sce) <- DataFrame(genes_names = rownames(sce))
-  rowData(sce)$expressed <- scater::nexprs(sce,byrow=TRUE)>0
-  per_cell <- perCellQCMetrics(sce[rowData(sce)$expressed,])
-  colData(sce) <- cbind(colData(sce),per_cell)
-  head(rowData(sce))
-  colData(sce)$keep_total <- scater::isOutlier(colData(sce)$sum,type = "lower", log=TRUE)
-  table(colData(sce)$keep_total) # TRUE are OUTLIERS
-  sce <- scater::addPerFeatureQC(sce)
-  print("Finding doublets")
-  sce <- computeSumFactors(sce) # by scran: scaling normalization (implements deconvolution)
-  sce <- logNormCounts(sce)
-  dbl_dens <- doubletCells(sce) # *scran* doubletCells function
-  sce$doublet_score <- 0
-  sce$doublet_score <- log10(dbl_dens + 1)
-  sce <- runTSNE(sce, perplexity=50, PCA=T, num_threads=4)
-  return(sce)
-}
 
 getMatrixFromtxt <- function(filepath){
   m = read.table(filepath, sep="\t", header=T, row.names = 1)
@@ -127,7 +109,7 @@ getMatrixFrom10X <- function(dirpath){
   m = Read10X(data.dir=dirpath)
   return(as.matrix(m))
 }
-getMatrixFromGio <- function(filepath){
+getMatrixFromCsv <- function(filepath){
   m = read.csv( filepath, sep=",", header=TRUE, row.names=1)
   return(as.matrix(m))
 }
@@ -153,4 +135,42 @@ doSplitDeMicheli <- function(datadirD, filenm){
   }else{ print("errors in dimensions of splitted tables, check, nothing to save")
     return(1)}
 }
+
+knee_plot <- function(bc_rank) {
+  knee_plt <- tibble(rank = bc_rank[["rank"]],
+                     total = bc_rank[["total"]]) %>%
+    distinct() %>%
+    dplyr::filter(total > 0)
+  annot <- tibble(inflection = metadata(bc_rank)[["inflection"]],
+                  rank_cutoff = max(bc_rank$rank[bc_rank$total > metadata(bc_rank)[["inflection"]]]))
+  p <- ggplot(knee_plt, aes(total, rank)) +
+    geom_line() +
+    geom_hline(aes(yintercept = rank_cutoff), data = annot, linetype = 2) +
+    geom_vline(aes(xintercept = inflection), data = annot, linetype = 2) +
+    scale_x_log10() +
+    scale_y_log10() +
+    annotation_logticks() +
+    labs(y = "Rank", x = "Total UMIs")
+  return(p)
+}
+
+rundoublets_scran <- function(sce){
+  rowData(sce) <- DataFrame(genes_names = rownames(sce))
+  rowData(sce)$expressed <- scater::nexprs(sce,byrow=TRUE)>0
+  per_cell <- perCellQCMetrics(sce[rowData(sce)$expressed,])
+  colData(sce) <- cbind(colData(sce),per_cell)
+  head(rowData(sce))
+  colData(sce)$keep_total <- scater::isOutlier(colData(sce)$sum,type = "lower", log=TRUE)
+  # colData(sce)$keep_total when TRUE are inferior OUTLIERS
+  sce <- scater::addPerFeatureQC(sce)
+  print("Finding doublets")
+  sce <- computeSumFactors(sce) # by scran: scaling normalization (implements deconvolution)
+  sce <- logNormCounts(sce)
+  dbl_dens <- doubletCells(sce) # *scran* doubletCells function
+  sce$doublet_score <- 0
+  sce$doublet_score <- log10(dbl_dens + 1)
+  sce <- runTSNE(sce, perplexity=50, PCA=T, num_threads=4)
+  return(sce)
+}
+
 
