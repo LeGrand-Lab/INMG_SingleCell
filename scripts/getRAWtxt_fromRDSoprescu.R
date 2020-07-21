@@ -1,9 +1,10 @@
 # Get raw .txt tables from Oprescu
 # input: .rds file, which is an 'AnnotatedDataFrame' type object
 # output: 
-#     - oprescu_Noninjured_raw.txt  
-# if desired, activate other tables (DPI or ALL) txt
-library("dplyr")
+#     - oprescu_Noninjured_raw.txt   - oprescu_ALL.txt
+# if desired, activate other tables (DPI) txt:
+# "X0.5.DP" "X2.DPI_" "X3.5.DP" "X5.DPI_" "X10.DPI" "X21.DPI"
+library(tidyverse)
 library(Seurat)
 
 prloc="~/INMG_SingleCell/" # << check
@@ -35,13 +36,6 @@ getNI <- function(oprefull){
   return(0)
 }
 
-getDPI <- function(oprefull){
-  dpi <- as.data.frame(oprefull[["RNA"]]@data) %>% select(!starts_with("Noninjured"))
-  write.table(dpi, paste0("data/Oprescu/",KEYNAME, "_DPI_raw.txt"), 
-              sep="\t", col.names=T,row.names = T)
-  return(0)
-}
-
 getALL <- function(oprefull){
   write.table(as.data.frame(oprefull[["RNA"]]@data), 
               paste0("data/Oprescu/", KEYNAME, "_ALLraw.txt"),
@@ -49,9 +43,31 @@ getALL <- function(oprefull){
   return(0)
 }
 
-#get only non injured
-#getNI(oprefull)
-getALL(oprefull)
+splitDPI <- function(tabfull){
+  # fix colnames
+  oldcols = colnames(tabfull)
+  colnames(tabfull) = str_replace(str_replace(oldcols,".DPI", " DPI"),"X","")
+  print(unique(substring(colnames(tabfull),1,7)))
+  patterns = c("Noninjured", "0.5 DPI_", "2 DPI_", "3.5 DPI_", "5 DPI_", "10 DPI_", "21 DPI_")
+  # getDPI(tableoprefull)
+  patternsDPI = patterns[patterns != "Noninjured"]
+  
+  sapply(patternsDPI, function(x){
+    print(x)
+    tmp <- tabfull %>% select(starts_with(x))
+    nfile = str_replace(x," DPI_","DPI")
+    write.table(tmp, paste0("oprescu_",nfile, ".txt"), sep="\t", row.names=T, col.names=T)
+  })
+  return(0)
+}
+
+#getNI(oprefull) #get only non injured
+#getALL(oprefull)
+
 # activate to get the other table(s):
-# getDPI(oprefull)
+tabfull = read.table(paste0("data/Oprescu/", KEYNAME, "_ALLraw.txt"),sep="\t",  row.names = 1,  header=T)
+splitDPI(tabfull)
+
+for(x in patternsDPI){
+ print(str_replace(str_replace(x,".DPI_","DPI"),"X",""))}
 

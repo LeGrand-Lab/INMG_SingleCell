@@ -10,7 +10,7 @@ library(cowplot)
 
 prloc="~/INMG_SingleCell/"
 setwd(prloc)
-rdsdir = "rds/doubletsD0spli_FINDER/"
+rdsdir = "rds/doubletsSpli_FINDER/"
 outdir = "qcdoubl/spli_FINDER/"
 
 integratedRDATAtablepath = "rds/doubletsD0/plotdoublet.Rdata"

@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 # Run doubletCells (scran) for each experiment separately
 # ALSO: split DeMicheliD0 into separated experiments !!
 # note that Giordani and DellOrso exist in splitted GEO elements.
@@ -17,9 +18,9 @@ library(DropletUtils)
 
 prloc="~/INMG_SingleCell/"
 setwd(prloc)
-rdsdir = "rds/doubletsD0spli_SCRAN/"
+rdsdir = "rds/doubletsSpli_SCRAN/"
 outdir = "qcdoubl/spli_SCRAN/"
-outtablename = "TABLE_DOUBLETS_SCRAN_splitted_4D0.txt"
+outtable = "TABLE_DOUBLETS_SCRAN_oprescuDPI.txt"
 dir.create(outdir, recursive=T)
 dir.create(rdsdir, recursive=T)
 
@@ -31,22 +32,12 @@ source(file="~/INMG_SingleCell/scripts/functions_stock.R")
 # ================================================================================
 print("defining full paths raw splitted data")
 # ================================================================================
-dorsos <- list.files("data/DellOrsoD0", full.names=T) # subfolders inthere
-gios <-  list.files("data/GiordaniD0", pattern="\\.csv$", full.names= T)
-dmichs <- list.files("data/DeMicheliD0/", pattern="DeMich.txt", full.names = T)
-oprescu <- list.files("data/OprescuD0", pattern="Noninjured_raw.txt$", full.names = T)
-#confirmed, yes oprescu at noninjury is one single run
+ALLFILESTORUN <- c("data/Oprescu/oprescu_0.5DPI.txt", "data/Oprescu/oprescu_2DPI.txt",
+                   "data/Oprescu/oprescu_3.5DPI.txt",  "data/Oprescu/oprescu_5DPI.txt",
+                   "data/Oprescu/oprescu_10DPI.txt", "data/Oprescu/oprescu_21DPI.txt" )
+names(ALLFILESTORUN) <- sapply(ALLFILESTORUN, function(x) str_replace(str_split(x,"/")[[1]][3],".txt",""))
 
-names(dorsos) = list.files("data/DellOrsoD0") # NOT full.names  
-names(gios) <- sapply(gios, function(x) { lf = strsplit(x, "_");lf=strsplit(lf[[1]],"/")
-  key = lf[[1]][ length(lf[[1]]) ] }) # like 'GSM3520458'
-names(dmichs) = sapply(dmichs, function(x) { lf = strsplit(x, "/")
-  key = str_replace(lf[[1]][ length(lf[[1]]) ], ".txt","")})
-names(oprescu) = strsplit(oprescu,"/")[[1]][2]
-
-ALLFILESTORUN =c(dorsos, gios, dmichs, oprescu)
-typefile = c(rep("10X", length(dorsos)), rep("csv", length(gios)), rep("txt",length(dmichs)),
-                    rep("txt", length(oprescu))) #  
+typefile = c(rep("txt", length(ALLFILESTORUN)))
 
 # ================================================================================
 print("Running analysis separately for each dataset")
@@ -82,6 +73,7 @@ exitstatus <- mapply(  function(x, y) {
   return(0)
 } ,names(ALLFILESTORUN), typefile)
 
+cat("scran quality control finished\n :-)\n")
 # ================================================================================
 print("creating dataframe to save all filtering info by scran, by barcode")
 # ================================================================================
@@ -107,8 +99,8 @@ for(i in 1:length(ALLFILESTORUN)){
   outdf <- rbind(outdf, tmp)
 }
 rm(tmp)
-print(paste0("saving table (including all 4 D0 sets) into ", outdir))
-write.table(outdf, paste0(outdir,outtablename), sep="\t", col.names = T)
+print(paste("saving results into table : "), paste0(outdir,outtable))
+write.table(outdf, paste0(outdir,outtable), sep="\t", col.names = T)
 
 # ================================================================================
 # NOTE : example of contstruction of files paths list
