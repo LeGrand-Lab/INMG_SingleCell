@@ -42,6 +42,11 @@ definecolors <- function(celltype){
   return(c)
 }
 
+colorsTransparent <- function(vectorlength){ 
+  c <- colorRampPalette(c(rgb(1,1,1,0.5),rgb(1,0,0,0.5)))(vectorlength)
+  return(c)
+}
+
 customTransferLabels <- function(markersDF, refDF, NBtop)  {
   # this function takes two dataframe (markers, Areference) and an integer
   # (i.e. how many top positive markers from markers tibble to use);
