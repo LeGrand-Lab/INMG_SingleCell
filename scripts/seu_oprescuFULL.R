@@ -10,11 +10,10 @@ library(RColorBrewer)
 library(viridis)
 library(patchwork)
 library(cowplot)
-source("~/INMG_SingleCell/scripts/functions_stock.R", local=T)
+
 prloc = "~/INMG_SingleCell/"
-prefix = "op_Filtered"  # *
 resu = "results/OprescuTimePoints/"
-dir.create("rds/OprescuTimePoints/", recursive = T)
+rdsdir= "rds/OprescuTimePoints/"
 daysorder = c("0.5 DPI", "2 DPI", "3.5 DPI", "5 DPI", "10 DPI", "21 DPI", "Noninjured")
 dayscols = viridis(length(daysorder), alpha=0.6)
 per.mito = 15
@@ -26,7 +25,7 @@ txtallD0SCRAN="qcdoubl/spli_SCRAN/TABLE_DOUBLETS_SCRAN_splitted_4D0.txt"
 
 setwd(prloc)
 dir.create(resu,recursive = T)
-
+dir.create(rdsdir, recursive = T)
 print("* retreiving complete QualityControl info *")
 # ================================================================================
 print("merging D0 and DPI rows (rbind)")
@@ -60,9 +59,7 @@ joinedQC <- joinedQC %>% mutate(DOUBL_INTERSECT =  case_when(
 # selecting only useful columns for this analysis:
 joinedQC <- joinedQC %>% select(barcode, sample, DOUBL_INTERSECT, is_cell, is_inf_outlier)
 rownames(joinedQC) = joinedQC$barcode
-
 rm(op.D0.finder, op.D0.scran, op.dpi.finder, op.dpi.scran, op.finder, op.scran)
-
 # ================================================================================  
 
 print("* creating seurat object from raw entire matrix; QC infos to meta.data *")
@@ -70,12 +67,8 @@ print("* creating seurat object from raw entire matrix; QC infos to meta.data *"
 mat = getMatrixFromtxt("data/Oprescu/oprescu_ALLraw.txt")
 #correct rownames 'format' as well:
 colnames(mat) = str_replace(str_replace(colnames(mat),".DPI"," DPI"),"X","")
-
 seu <- CreateSeuratObject(mat, project="oprescuALL", min.cells = 3, min.features = 120)
-head(seu@meta.data)
-dim(seu@meta.data)
-dim(joinedQC)
-
+head(seu@meta.data) ; dim(seu@meta.data) ; dim(joinedQC)
 # set column $barcode :
 seu@meta.data$barcode = rownames(seu@meta.data)
 tmp = left_join(seu@meta.data, joinedQC, by="barcode")
@@ -84,11 +77,8 @@ if(all(rownames(tmp) == rownames(seu@meta.data))){
   seu@meta.data <- tmp
   rm(tmp)
 }else{print("something went wrong when assigning QC infos to meta.data")}
-
 seu[["percent.mt"]] <- PercentageFeatureSet(seu,pattern="^mt-")
-
 # ================================================================================
-
 
 # ================================================================================
 print("* printing quality control plots, into results *")
@@ -101,7 +91,6 @@ q123 <- lapply(mycriteria, function(x){
   scale_fill_discrete(labels = paste0(levels(seu@meta.data$x), table(seu@meta.data$x))) +
   labs(title=x)+theme(legend.text = element_text(size=8), legend.title= element_blank(), title=element_text(size=6) ) 
 })
-
 q4 <- VlnPlot(seu,features=c("nCount_RNA","nFeature_RNA","percent.mt") , split.by = "orig.ident", pt.size = 0.5)
 q4g <- plot_grid(q4[[1]],q4[[2]],q4[[3]],nrow=1)
 q123g <- plot_grid(plotlist = q123, nrow=1)
@@ -111,48 +100,41 @@ mygeompoints = plot_grid(title, q1234g, ncol=1, rel_heights=c(0.1, 1))
 pdf(paste0(resu,"QCplots.pdf"), width= 10)
 mygeompoints
 dev.off()
-
 ###  provisionnel: saving plots to make improvements
 save(q123,colstrans, q4, file=paste0(resu,"q123colstransq4.RData"))
-
 # ================================================================================
-
 
 print("* filtering object with the criteria DOUBL_INTERSECT, is_cell, is_inf_outlier *")
 # ================================================================================
 filtered.seu <- subset(seu, subset= DOUBL_INTERSECT != "Doublet" &  is_cell != F &
                 is_inf_outlier != T & percent.mt < per.mito)
-
 dim(filtered.seu) #19232 51687  ==>  1506 likely doublets or NOT true cells 
-saveRDS(filtered.seu)
-
+saveRDS(filtered.seu, file=paste0(rdsdir,"filtered_opreFULL_seu.rds"))
 # ================================================================================  
 
-print("* running entire analysis, using SCTransform *")
+print("* running entire expression analysis, using SCTransform *")
 # ================================================================================
-filtered.seu = SCTransform(filtered.seu, vars.to.regress = "percent.mt", verbose = FALSE)
+filtered.seu = SCTransform(filtered.seu, vars.to.regress = "percent.mt", verbose = T)
 filtered.seu =  RunPCA(filtered.seu, verbose=FALSE)
-pdf(paste0(resu,"dimHeatmap30Elbow_opres.pdf"))
+pdf(paste0(resu,"dimHeatmap30Elbow_opreFULL.pdf"))
 DimHeatmap(filtered.seu, dims=1:30, cells = 500, balanced = TRUE)
 ElbowPlot(filtered.seu, ndims = 50)
 DimPlot(filtered.seu, reduction = "pca")
 dev.off()
-
-RunUMAP(filtered.seu, dims = 1:30, umap.method = "uwot")  #TODO  run fitsne as well 
-
+filtered.seu <- RunUMAP(filtered.seu, dims = 1:30, umap.method = "uwot")  #TODO  run fitsne as well 
 filtered.seu <- FindNeighbors(filtered.seu, dims = 1:30, verbose = FALSE)
 filtered.seu <- FindClusters(filtered.seu, verbose = FALSE)
+saveRDS(filtered.seu, file=paste0(rdsdir,"filtered_opreUMAP.rds"))
+filtered.seu.markersU <- FindAllMarkers(filtered.seu, only.pos = FALSE, min.pct = 0.25, logfc.threshold = 0.25)
+write.table(filtered.seu.markersU,  :::::::::::::)
 
-filtered.seu.markersU <- FindAllMarkers(seu, only.pos = FALSE, min.pct = 0.25, logfc.threshold = 0.25)
-
-save(filtered.seu, filtered.seu.markersU, file="rds/OprescuTimePoints/filteredSEUetmarkers.RData")
 # ================================================================================  
 
 # # Interesting info: 
 # # --
 # # Oprescu already ejected all cells expressing less than 400 nFeatures
 # # it is sad, for our next analysis it will be desirable to filter
-# # using `$is_cell`and  `$is_inf_outlier` instead  :
+# # using `$is_cell`and  `$is_inf_outlier` instead. 
 # # --
 # test = joinedQC[joinedQC$nFeature_RNA < 400,]
 # dim(test)
