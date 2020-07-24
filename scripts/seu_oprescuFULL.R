@@ -10,7 +10,7 @@ library(RColorBrewer)
 library(viridis)
 library(patchwork)
 library(cowplot)
-
+source("~/INMG_SingleCell/scripts/functions_stock.R", local=T)
 prloc = "~/INMG_SingleCell/"
 resu = "results/OprescuTimePoints/"
 rdsdir= "rds/OprescuTimePoints/"
@@ -121,12 +121,14 @@ DimHeatmap(filtered.seu, dims=1:30, cells = 500, balanced = TRUE)
 ElbowPlot(filtered.seu, ndims = 50)
 DimPlot(filtered.seu, reduction = "pca")
 dev.off()
-filtered.seu <- RunUMAP(filtered.seu, dims = 1:30, umap.method = "uwot")  #TODO  run fitsne as well 
-filtered.seu <- FindNeighbors(filtered.seu, dims = 1:30, verbose = FALSE)
-filtered.seu <- FindClusters(filtered.seu, verbose = FALSE)
-saveRDS(filtered.seu, file=paste0(rdsdir,"filtered_opreUMAP.rds"))
+filtered.seu <- RunUMAP(filtered.seu, dims = 1:30)  
+# using function from the file 'scripts/functions_stock.R'
+filtered.seu <- KNNplusFITSNE(filtered.seu, 30, 0.8)
+# FITSNE is saved into "tsne" reduction
+saveRDS(filtered.seu, file=paste0(rdsdir,"filtered_opreFITSNEUMAP.rds"))
 filtered.seu.markersU <- FindAllMarkers(filtered.seu, only.pos = FALSE, min.pct = 0.25, logfc.threshold = 0.25)
-write.table(filtered.seu.markersU,  :::::::::::::)
+write.table(filtered.seu.markersU, paste0(resu,"filtered_opreMARKERS.txt"),
+              sep="\t", col.names=T, row.names=T) 
 
 # ================================================================================  
 
