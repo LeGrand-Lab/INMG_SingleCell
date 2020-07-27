@@ -159,18 +159,18 @@ knee_plot <- function(bc_rank) {
   return(p)
 }
 
-rundoublets_scran <- function(sce){
+runPrep_scran <- function(sce){
   rowData(sce) <- DataFrame(genes_names = rownames(sce))
   rowData(sce)$expressed <- scater::nexprs(sce,byrow=TRUE)>0
   per_cell <- perCellQCMetrics(sce[rowData(sce)$expressed,])
   colData(sce) <- cbind(colData(sce),per_cell)
   head(rowData(sce))
-  colData(sce)$keep_total <- scater::isOutlier(colData(sce)$sum,type = "lower", log=TRUE)
-  # colData(sce)$keep_total when TRUE are inferior OUTLIERS
   sce <- scater::addPerFeatureQC(sce)
-  print("Finding doublets")
   sce <- computeSumFactors(sce) # by scran: scaling normalization (implements deconvolution)
   sce <- logNormCounts(sce)
+  return(sce)
+}
+rundoublets_scran <- function(sce){
   dbl_dens <- doubletCells(sce) # *scran* doubletCells function
   sce$doublet_score <- 0
   sce$doublet_score <- log10(dbl_dens + 1)
@@ -178,4 +178,10 @@ rundoublets_scran <- function(sce){
   return(sce)
 }
 
-
+doDimPlotHighlight <- function(seu, cellgrlist, mycolors, reduc, title){
+  return(DimPlot(seu, label=T, repel=T, cells.highlight = cellgrlist ,
+                 cols.highlight = mycolors, sizes.highlight = 0.2,
+                 pt.size=0.1, cols="darkgray",  
+                 label.size=4, reduction=reduc) + ggtitle(title) + 
+           theme(legend.position="none"))
+}

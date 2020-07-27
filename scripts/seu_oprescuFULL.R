@@ -1,4 +1,5 @@
-#
+# Full Oprescu's timepoint analysis
+# incorporating MODULAR QC results
 # --
 # JohaGL 
 library(Seurat)
@@ -7,15 +8,13 @@ library(ggplot2)
 library(tidyverse)
 library(sctransform)
 library(RColorBrewer)
-library(viridis)
 library(patchwork)
 library(cowplot)
 source("~/INMG_SingleCell/scripts/functions_stock.R", local=T)
 prloc = "~/INMG_SingleCell/"
 resu = "results/OprescuTimePoints/"
 rdsdir= "rds/OprescuTimePoints/"
-daysorder = c("0.5 DPI", "2 DPI", "3.5 DPI", "5 DPI", "10 DPI", "21 DPI", "Noninjured")
-dayscols = viridis(length(daysorder), alpha=0.6)
+
 per.mito = 15
  
 txtdpi.FINDER="qcdoubl/spli_FINDER/TABLE_DOUBLFINDER_oprescuDPI.txt"
@@ -26,7 +25,7 @@ txtallD0SCRAN="qcdoubl/spli_SCRAN/TABLE_DOUBLETS_SCRAN_splitted_4D0.txt"
 setwd(prloc)
 dir.create(resu,recursive = T)
 dir.create(rdsdir, recursive = T)
-print("* retreiving complete QualityControl info *")
+print("* retreiving complete QualityControl info (D0 and DPI)*")
 # ================================================================================
 print("merging D0 and DPI rows (rbind)")
 allD0finder = read.table(txtallD0FINDER, sep="\t",  header=T) 
@@ -51,7 +50,7 @@ if(print(all(as.character(op.finder$id) == as.character(op.scran$barcode)))){
   joinedQC$barcode = str_replace(str_replace(joinedQC$barcode, ".DPI"," DPI"), "X","")
 }else{print("oh no, barcodes do not match, stopping"); stop()}
 
-print("intersecting doublets; copying barcodes to rownames")
+print("intersecting doublets; passing barcodes to rownames")
 dim(joinedQC); dim(joinedQC %>% distinct()) # to check dims; to check no row duplication
 joinedQC <- joinedQC %>% mutate(DOUBL_INTERSECT =  case_when(
   DFclass == "Doublet" & classific == "doublets" ~ "Doublet",
@@ -127,16 +126,24 @@ filtered.seu <- KNNplusFITSNE(filtered.seu, 30, 0.8)
 # FITSNE is saved into "tsne" reduction
 saveRDS(filtered.seu, file=paste0(rdsdir,"filtered_opreFITSNEUMAP.rds"))
 filtered.seu.markersU <- FindAllMarkers(filtered.seu, only.pos = FALSE, min.pct = 0.25, logfc.threshold = 0.25)
-write.table(filtered.seu.markersU, paste0(resu,"filtered_opreMARKERS.txt"),
+write.table(filtered.seu.markersU, paste0(resu,"filtered_opreMARKERSboth.txt"),
               sep="\t", col.names=T, row.names=T) 
+
+markersTOP.pos = filtered.seu.markersU %>% filter(avg_logFC>0) %>% group_by(cluster) %>% top_n(20, wt=avg_logFC)
+#as markers already ranked, no need to: '%>% arrange(p_val_adj, desc(avg_logFC), .by_group=T)' 
+markersTOP.neg = filtered.seu.markersU %>% filter(avg_logFC<0) %>% group_by(cluster) %>% top_n(5, wt = -avg_logFC)
+write.table(markersTOP.pos, paste0(resu,"filtered_opreMARKERS_TOPpos.txt"),
+            sep="\t", col.names=T, row.names=T) 
+write.table(markersTOP.neg, paste0(resu,"filtered_opreMARKERS_TOPneg.txt"),
+            sep="\t", col.names=T, row.names=T) 
+
 
 # ================================================================================  
 
 # # Interesting info: 
 # # --
-# # Oprescu already ejected all cells expressing less than 400 nFeatures
-# # it is sad, for our next analysis it will be desirable to filter
-# # using `$is_cell`and  `$is_inf_outlier` instead. 
+# # Oprescu already ejected all cells expressing less than 400 nFeatures (GEO raw matrix),
+# #  `$is_cell`, `$is_inf_outlier`, etc, where calculated on this splitted raw matrix . 
 # # --
 # test = joinedQC[joinedQC$nFeature_RNA < 400,]
 # dim(test)

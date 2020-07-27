@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# Run doubletCells (scran) for each experiment separately
+# Run QC (scran, scater, DropletUtils) for each experiment separately
 # ALSO: split DeMicheliD0 into separated experiments !!
 # note that Giordani and DellOrso exist in splitted GEO elements.
 # saved into data.
@@ -25,7 +25,7 @@ dir.create(outdir, recursive=T)
 dir.create(rdsdir, recursive=T)
 
 #load functions : rundoublets_scran and others
-source(file="~/INMG_SingleCell/scripts/functions_stock.R") 
+source(file="~/INMG_SingleCell/scripts/functions_stock.R", local=T) 
 
 #doSplitDeMicheli("data/DeMicheliD0/", "rawdataD0.txt") # DONE (ONLY ONCE NEEDED)
 
@@ -40,7 +40,7 @@ names(ALLFILESTORUN) <- sapply(ALLFILESTORUN, function(x) str_replace(str_split(
 typefile = c(rep("txt", length(ALLFILESTORUN)))
 
 # ================================================================================
-print("Running analysis separately for each dataset")
+print("Running QC separately for each dataset")
 # ================================================================================
 
 exitstatus <- mapply(  function(x, y) {
@@ -53,17 +53,21 @@ exitstatus <- mapply(  function(x, y) {
   }
   sce <- SingleCellExperiment(assays=list(counts=as.matrix(mat)))
   print(sce)
-  sce <- rundoublets_scran(sce)
-
+ 
+  sce <- runPrep_scran(sce) #encapsulated functions, see functions_stock.R
+  
+  # colData(sce)$keep_total when TRUE are inferior OUTLIERS :
+  colData(sce)$keep_total <- scater::isOutlier(colData(sce)$sum,type = "lower", log=TRUE)
+  
   print("mark empty drops")
   bcrank <- DropletUtils::barcodeRanks(SingleCellExperiment::counts(sce[rowData(sce)$expressed, ]))
-  # Note: long version has $n_umi which is equal to $sum ($sum is calculated by ::nexprs)
+  # Note: long version QC has $n_umi which is equal to $sum ($sum is calculated by ::nexprs)
   colData(sce)$is_cell <- colData(sce)$sum > metadata(bcrank)$inflection  # $is_cell when FALSE is an empty drop 
   print("end mark empty drops")
+  sce <- rundoublets_scran(sce) #encapsulated function, see functions_stock.R
   
   print(paste0("saving rds into ", rdsdir, x, ".rds"))
   saveRDS(sce, paste0(rdsdir, x, ".rds"))
-  
   f <- scater::plotColData(sce, x="sum",y="detected",colour_by="doublet_score")
   t <- plotTSNE(sce, colour_by="doublet_score")
   pdf(paste0(outdir, x, "plotandKnee.pdf"), width=12)
