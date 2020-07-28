@@ -1,5 +1,7 @@
 # Full Oprescu's timepoint analysis
-# incorporating MODULAR QC results
+# which incorporates MODULAR QC calculated info
+#     - prints QC plots into results
+#     - saves filtered (and unfiltered) Seurat objects
 # --
 # JohaGL 
 library(Seurat)
@@ -63,44 +65,51 @@ rm(op.D0.finder, op.D0.scran, op.dpi.finder, op.dpi.scran, op.finder, op.scran)
 
 print("* creating seurat object from raw entire matrix; QC infos to meta.data *")
 # ================================================================================
-mat = getMatrixFromtxt("data/Oprescu/oprescu_ALLraw.txt")
+mat = getMatrixFromtxt("data/Oprescu/oprescu_ALLraw.txt") # time consuming
 #correct rownames 'format' as well:
 colnames(mat) = str_replace(str_replace(colnames(mat),".DPI"," DPI"),"X","")
 seu <- CreateSeuratObject(mat, project="oprescuALL", min.cells = 3, min.features = 120)
 head(seu@meta.data) ; dim(seu@meta.data) ; dim(joinedQC)
 # set column $barcode :
 seu@meta.data$barcode = rownames(seu@meta.data)
-tmp = left_join(seu@meta.data, joinedQC, by="barcode")
+tmp = left_join(seu@meta.data, joinedQC, by="barcode")  # *joinedQC is our full QCinfo*
 rownames(tmp) = tmp$barcode
 if(all(rownames(tmp) == rownames(seu@meta.data))){
   seu@meta.data <- tmp
   rm(tmp)
 }else{print("something went wrong when assigning QC infos to meta.data")}
 seu[["percent.mt"]] <- PercentageFeatureSet(seu,pattern="^mt-")
+print("saving unfiltered seurat object")
+saveRDS(seu, paste0(rdsdir, "NONfiltered_opre_FULL_seu.rds"))
+dim(seu)#19311 53193
 # ================================================================================
 
 # ================================================================================
 print("* printing quality control plots, into results *")
-colstrans = c(rgb(0.54, 0.2, 0.33, 0.3), rgb(0.05, 0.27, 0.31, 0.1))
+colstrans = c(rgb(0.54, 0.2, 0.33, 0.3), rgb(0.2, 0.66, 0.77, 0.2))
 # ================================================================================
-q123 <- list() ;  mycriteria=c("DOUBL_INTERSECT", "is_cell", "is_inf_outlier")
-q123 <- lapply(mycriteria, function(x){
-  if (x == "is_inf_outlier"){ colstrans = rev(colstrans) }
-  q <- FeatureScatter(seu, "nCount_RNA", "nFeature_RNA", group.by=x, cols=colstrans) +
-  scale_fill_discrete(labels = paste0(levels(seu@meta.data$x), table(seu@meta.data$x))) +
-  labs(title=x)+theme(legend.text = element_text(size=8), legend.title= element_blank(), title=element_text(size=6) ) 
+q123 <- list() ;  QCcriteria=c("DOUBL_INTERSECT", "is_cell", "is_inf_outlier")
+q123 <- lapply(QCcriteria, function(x){
+  tabr = table(seu@meta.data[[x]])
+  captx = paste(as.character(tabr[[1]]), "/",as.character(tabr[[2]]))
+  if (x != "DOUBL_INTERSECT"){ 
+    colstrans = c(rgb(0.54, 0.2, 0.33, 1), rgb(0.2, 0.66, 0.77, 0.05))
+        if (x == "is_inf_outlier") {colstrans = rev(colstrans) } }
+  q <- FeatureScatter(seu, "nCount_RNA", "nFeature_RNA", group.by=x, cols=colstrans, pt.size=0.4) +
+      labs(title=x, caption =captx)+
+      theme(legend.text = element_text(size=9), legend.title= element_blank(), title=element_text(size=9) ) 
 })
-q4 <- VlnPlot(seu,features=c("nCount_RNA","nFeature_RNA","percent.mt") , split.by = "orig.ident", pt.size = 0.5)
+q4 <- VlnPlot(seu,features=c("nCount_RNA","nFeature_RNA","percent.mt") , split.by = "orig.ident", pt.size = 0.2)
 q4g <- plot_grid(q4[[1]],q4[[2]],q4[[3]],nrow=1)
-q123g <- plot_grid(plotlist = q123, nrow=1)
+q123g <- plot_grid(plotlist = q123, nrow=1, ncol=3)
 q1234g <- plot_grid(q123g,q4g,nrow=2)
 title <- ggdraw() + draw_label(paste0("QC including scran and two doublet methods intersection"), fontface='bold')
 mygeompoints = plot_grid(title, q1234g, ncol=1, rel_heights=c(0.1, 1))
-pdf(paste0(resu,"QCplots.pdf"), width= 10)
+pdf(paste0(resu,"QCplotsV.pdf"), width= 10)
 mygeompoints
 dev.off()
-###  provisionnel: saving plots to make improvements
-save(q123,colstrans, q4, file=paste0(resu,"q123colstransq4.RData"))
+###   saving plots to make improvements , just in case
+save(q123, q4, file=paste0(resu,"q123_q4_ggplots.RData"))
 # ================================================================================
 
 print("* filtering object with the criteria DOUBL_INTERSECT, is_cell, is_inf_outlier *")
@@ -109,6 +118,7 @@ filtered.seu <- subset(seu, subset= DOUBL_INTERSECT != "Doublet" &  is_cell != F
                 is_inf_outlier != T & percent.mt < per.mito)
 dim(filtered.seu) #19232 51687  ==>  1506 likely doublets or NOT true cells 
 saveRDS(filtered.seu, file=paste0(rdsdir,"filtered_opreFULL_seu.rds"))
+rm(seu)# remove NONfiltered seu to avoid mistakes
 # ================================================================================  
 
 print("* running entire expression analysis, using SCTransform *")

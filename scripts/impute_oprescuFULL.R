@@ -8,14 +8,12 @@ library(tidyverse)
 library(RColorBrewer)
 library(patchwork)
 library(cowplot)
-library(vididis)
-
+library(inlmisc)
+source("~/INMG_SingleCell/scripts/functions_stock.R", local=T)
 prloc = "~/INMG_SingleCell/"
 datadir = "data/Oprescu/"
 rdsdir= "rds/OprescuTimePoints/"
 resu = "results/OprescuTimePoints/"
-daysorder = c("0.5 DPI", "2 DPI", "3.5 DPI", "5 DPI", "10 DPI", "21 DPI", "Noninjured")
-dayscols = viridis(length(daysorder), alpha=0.6)
 
 setwd(prloc)
 
@@ -32,35 +30,34 @@ customLabelTransfer <- function(typecell.authors.df, seu){
   return(new.cluster.ids)  # a string vector celltype, having numeric levels
 }
 
-
-
 typecell.authors.df <- read.table(paste0(datadir, "oprescu_ExtractedMetaData.txt"), sep="\t",  header=T, row.names = 1)
-#                           timepoint   cluster       metacluster                  cellID labelDescription
-# 21 DPI_TTTGGTTTCTACCAGA     21dpi Osr1_FAPs              FAPs 21 DPI_TTTGGTTTCTACCAGA               NA
+#                         timepoint   cluster       metacluster     cellID            labelDescription
+# 21 DPI_TTTGGTTTCTACCAGA     21dpi   Osr1_FAPs     FAPs       21 DPI_TTTGGTTTCTACCAGA               NA
 
-seu <- readRDS(paste0(rdsdir, "filtered_opreFITSNEUMAP.rds"))
+filtered.seu <- readRDS(paste0(rdsdir, "filtered_opreFITSNEUMAP.rds"))
 
 print("before transferring celltypes labels, checking CALCULATED seurat_clusters:")
-musc.bc <-  WhichCells(seu2, idents=15)
-myonu.bc <- WhichCells(seu2, idents=14)
+musc.bc <-  WhichCells(filtered.seu, idents=15)
+myonu.bc <- WhichCells(filtered.seu, idents=14)
 faps.bc <- list()
-faps.bc <- lapply(c(11,10,1,16,13,16,6,19,17), function(x) WhichCells(seu2, idents=x))
+faps.bc <- lapply(c(11,10,1,16,13,16,6,19,17), function(x) WhichCells(filtered.seu, idents=x))
 
-mu_myo <- doDimPlotHighlight(seu2, list(musc.bc,myonu.bc), c("royalblue","gold"), "tsne",
-                                "14_Myonuclei and 15_MuSC"  )
-faps_only <- doDimPlotHighlight(seu2, faps.bc, 
-                                   viridis_pal(option="B")(length(faps.bc)), 
+mu_myo <- doDimPlotHighlight(filtered.seu, list(musc.bc,myonu.bc), c("cadetblue","orange2"), "tsne",
+                                "15_MuSC and 14_Myonuclei "  )
+faps_only <- doDimPlotHighlight(filtered.seu, faps.bc, 
+                                  GetColors(length(faps.bc)+2,scheme="iridescent", rev=T, alpha=0.7)[1:length(faps.bc)], 
                                    "tsne",
                                    "FAPs distinct sub-clusters"  )
-
-pdf(paste0(resu,"oprescu_calcClusters.pdf"), width=10)
+print(paste0("CALCULATED seurat_clusters plot saved into : ", resu, "xpreview_opre_calcClusters.pdf"))
+pdf(paste0(resu,"xpreview_opre_calcClusters.pdf"), width=10)
 plot_grid(mu_myo, faps_only)
 dev.off()
   
-print(all(seu@active.ident == seu@meta.data$seurat_clusters))
-new.cluster.ids <- customLabelTransfer(typecell.authors.df, seu)
-saveRDS(new.cluster.ids, paste0(rdsdir,"opreFULL_transf_celltype_Vector"))
-seu <- RenameIdents(seu, new.cluster.ids)
+print(paste0("imputed celltypes (leveled vector) saved here : ", rdsdir,
+             "opreFULL_transf_celltype_Vector.rds"))
+print(all(filtered.seu@active.ident == filtered.seu@meta.data$seurat_clusters))
+new.cluster.ids <- customLabelTransfer(typecell.authors.df, filtered.seu)
+saveRDS(new.cluster.ids, paste0(rdsdir,"opreFULL_transf_celltype_Vector.rds"))
 
+# END
 
-#filtered.seu.markersU <- read.table(paste0(resu, "filtered_opreMARKERSboth.txt"), sep="\t",  header=T) 
