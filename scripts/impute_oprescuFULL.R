@@ -59,5 +59,12 @@ print(all(filtered.seu@active.ident == filtered.seu@meta.data$seurat_clusters))
 new.cluster.ids <- customLabelTransfer(typecell.authors.df, filtered.seu)
 saveRDS(new.cluster.ids, paste0(rdsdir,"opreFULL_transf_celltype_Vector.rds"))
 
+# GET MARKERS PROPER TO TRANSFERRED CELL TYPES
+# ===========================================================================
+markerspos <- read.table(paste0(resu, "filtered_opreMARKERS_TOPpos.txt"), header=T) 
+new.clusters.df <- data.frame("cluster"=as.numeric(names(new.cluster.ids)),"celltype"=new.cluster.ids)
+markerspos <- left_join(markerspos,new.clusters.df, by="cluster")
+markerspos <- markerspos %>% group_by(cluster) %>% top_n(10,wt=avg_logFC)
+write.table(markerspos, paste0(resu, "filtered_opreMARKERS_TOPposCELLTYPES.txt"), row.names = T, col.names = T)
 # END
 

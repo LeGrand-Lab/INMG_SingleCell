@@ -1,0 +1,3 @@
+script sin this "xold/" folder are about integrated object subjected to doublets analysis
+only to check differences compared to proper splited analysis
+IGNORE IN THE FUTURE
