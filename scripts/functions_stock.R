@@ -180,8 +180,8 @@ rundoublets_scran <- function(sce){
 
 doDimPlotHighlight <- function(seu, cellgrlist, mycolors, reduc, title){
   return(DimPlot(seu, label=T, repel=T, cells.highlight = cellgrlist ,
-                 cols.highlight = mycolors, sizes.highlight = 0.2,
-                 pt.size=0.1, cols="darkgray",  
-                 label.size=4, reduction=reduc) + ggtitle(title) + 
+                 cols.highlight = mycolors, label.size= 3,
+                 sizes.highlight = 0.2, pt.size=0.1, cols="darkgray",  
+                reduction=reduc) + ggtitle(title) + 
            theme(legend.position="none"))
 }
