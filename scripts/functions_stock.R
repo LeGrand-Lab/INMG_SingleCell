@@ -3,6 +3,12 @@
 # --
 # Joha 2020
 
+doSCT_PCA_UMAP <- function(seu,numdim){
+  seu <- SCTransform(seu, vars.to.regress = "percent.mt")
+  seu <- RunPCA(seu)
+  seu <- RunUMAP(seu, dims = 1:numdim)
+  return(seu)
+}
 
 NormFeatScalePCA <- function(seu, nFeatRNA, percentmit){
   seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern= "^mt-")
@@ -184,4 +190,31 @@ doDimPlotHighlight <- function(seu, cellgrlist, mycolors, reduc, title){
                  sizes.highlight = 0.2, pt.size=0.1, cols="darkgray",  
                 reduction=reduc) + ggtitle(title) + 
            theme(legend.position="none"))
+}
+
+domono <- function(seu, experiment){
+  print("two arguments to use this function: seurat_obj and experiment= RNA or SCT")
+  gene_annotation <- data.frame(rownames(seu@assays[[experiment]]@data))
+  rownames(gene_annotation) <- rownames(seu@assays[[experiment]]@data)
+  colnames(gene_annotation) <- c("gene_short_name")
+  gene_annotation = new("AnnotatedDataFrame",gene_annotation)
+  cell_metadata = new("AnnotatedDataFrame",seu@meta.data)
+  expression_matrix <- seu@assays[[experiment]]@data
+  cds <- newCellDataSet(expression_matrix,
+                        phenoData = cell_metadata,
+                        featureData = gene_annotation) #default is VGAM::vglmff(), use when input is normalized-scaled expression matrix
+  # use option expressionFamily=VGAM::negbinomial.size() , when raw counts
+  DelayedArray:::set_verbose_block_processing(TRUE)
+  cds <- estimateSizeFactors(cds)
+  cds <- estimateDispersions(cds, cores=4)
+  cds <- preprocessCDS(cds, method="PCA", num_dim = 20,
+                       norm_method = "log",
+                       verbose = T, cores=4) #introduced in v3alpha, !yields ERROR if residualModelFormulaStr = "~Size_Factor + percent.mt",
+  cds <- reduceDimension(cds, num_dim=20, reduction_method='tSNE',
+                         residualModelFormulaStr = "~Size_Factor + percent.mt",
+                         verbose = T,cores=4)
+  cds <- partitionCells(cds)
+  cds <- learnGraph(cds, use_pca=TRUE,
+                    rge_method = "DDRTree", verbose=TRUE)
+  return(cds)
 }
