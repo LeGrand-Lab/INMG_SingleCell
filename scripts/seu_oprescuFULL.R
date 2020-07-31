@@ -1,5 +1,5 @@
 # Full Oprescu's timepoint analysis
-# which incorporates MODULAR QC calculated info
+# which incorporates MODULAR QC calculated INFO (.txt)
 #     - prints QC plots into results
 #     - saves filtered (and unfiltered) Seurat objects
 # --

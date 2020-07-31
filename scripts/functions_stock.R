@@ -200,21 +200,29 @@ domono <- function(seu, experiment){
   gene_annotation = new("AnnotatedDataFrame",gene_annotation)
   cell_metadata = new("AnnotatedDataFrame",seu@meta.data)
   expression_matrix <- seu@assays[[experiment]]@data
-  cds <- newCellDataSet(expression_matrix,
-                        phenoData = cell_metadata,
-                        featureData = gene_annotation) #default is VGAM::vglmff(), use when input is normalized-scaled expression matrix
-  # use option expressionFamily=VGAM::negbinomial.size() , when raw counts
+  if (experiment == "RNA"){
+    cds <- newCellDataSet(expression_matrix,
+                          phenoData = cell_metadata,
+                          featureData = gene_annotation,
+                          expressionFamily=VGAM::negbinomial.size()) 
+    # use option expressionFamily=VGAM::negbinomial.size() , when raw counts
+  }else if (experiment == "SCT"){
+    cds <- newCellDataSet(expression_matrix,
+                          phenoData = cell_metadata,
+                          featureData = gene_annotation) 
+    #default is VGAM::vglmff(), use when input is normalized-scaled expression matrix
+  }
   DelayedArray:::set_verbose_block_processing(TRUE)
   cds <- estimateSizeFactors(cds)
   cds <- estimateDispersions(cds, cores=4)
   cds <- preprocessCDS(cds, method="PCA", num_dim = 20,
                        norm_method = "log",
                        verbose = T, cores=4) #introduced in v3alpha, !yields ERROR if residualModelFormulaStr = "~Size_Factor + percent.mt",
-  cds <- reduceDimension(cds, num_dim=20, reduction_method='tSNE',
+  cds <- reduceDimension(cds, num_dim=20, reduction_method= 'tSNE', 
                          residualModelFormulaStr = "~Size_Factor + percent.mt",
                          verbose = T,cores=4)
   cds <- partitionCells(cds)
-  cds <- learnGraph(cds, use_pca=TRUE,
+  cds <- learnGraph(cds, use_pca=TRUE, 
                     rge_method = "DDRTree", verbose=TRUE)
   return(cds)
 }

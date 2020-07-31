@@ -7,6 +7,7 @@ library(tidyverse)
 library(RColorBrewer)
 library(patchwork)
 library(cowplot)
+library(viridis)
 source("~/INMG_SingleCell/scripts/functions_stock.R", local=T)
 prloc = "~/INMG_SingleCell/"
 datadir = "data/Oprescu/"
@@ -98,8 +99,8 @@ vlnknown <- wrap_plots(aesthetics,ncol=length(myfeat_vln)/2) +
   plot_annotation(title= "Known markers across timepoints in MuSC cells")
 
 ##### PRINTING ####
-pdf(paste0(resu, "MuSC_ViolinpltGrem1genes.pdf"), width=12)
+pdf(paste0(resu, "MuSC_ViolinpltGrem1genes.pdf"), width=12, height=5)
 vln_grem
 dev.off()
 
-
+# ============== 
