@@ -24,12 +24,12 @@ setwd(prloc)
 print("this analysis runs on musc+sm object, markers-Clusters were verified by the boss")
 seu <- readRDS(paste0(rdsdir,"muscpostSEU.rds"))
 
-print("printing DimPlots : calculated clusters, then plus markers")
+print("visualizing initial DimPlots : calculated clusters, plus markers")
 plotsNums = list(); clusby=c(CELLTYPEcol, "seurat_clusters")
-# *
 plotsNums = lapply(clusby, function(y){ 
   p = DimPlot(seu, reduction = REDUC, group.by = y, 
               label=T, repel=T, label.size = 3 ) })
+plot_grid(plotlist=plotsNums)
 
 markerstab = read.table(paste0(resu,"tablesMarkersSubPops/musc_checkMarkersAndClusters.txt"),
                         header = T,sep='\t')
@@ -39,7 +39,7 @@ tmpdf = left_join(tmpdf, markerstab,by=c("numclus"="cluster"))
 tmpdf <- tmpdf %>% mutate(nb_mark = paste0(numclus," ",concatmarkers))
 seu@meta.data$nb_mark = as.factor(tmpdf$nb_mark)
 # *
-plotplusmarkers = DimPlot(seu, reduction = REDUC, group.by = "concat", pt.size = 0.3,
+plotplusmarkers = DimPlot(seu, reduction = REDUC, group.by = "nb_mark", pt.size = 0.3,
   label=T, repel=T, label.size = 3 ) + theme(legend.text = element_text(size=8))
 
 tmpdf <- tmpdf %>% mutate(nb_newtype = case_when(
@@ -61,15 +61,21 @@ plotNEWtypes = DimPlot(seu, reduction = REDUC, group.by = "newtype", pt.size = 0
    label=T, repel=T, label.size = 3 )+ theme(legend.text = element_text(size=8))
 
 # TODO : fix, it did not print
-pdf(paste0(resu,"cartMusc_subclustersPrep.pdf"),width=12)
+#pdf(paste0(resu,"cartMusc_subclustersPrep.pdf"),width=12)
 plot_grid( plotNEWtypes,plotplusmarkers,
            plotsNums[[2]], plotsNums[[1]],
   nrow= 2 ) + plot_annotation(title="MuSC and SC clustering, steps (inversed order), random colors")
-dev.off()
+#dev.off()
 
 print("PROBLEMATIC cluster 9, exclude to do monocle(it runs reductdim and sizef again)")
 head(seu@active.ident)
 seu.prepmono <- subset(seu, idents="9",invert=T)
+# IMPORTANT : FIX FACTORS !!!
+seu.prepmono@meta.data$newtype <- factor(seu.prepmono@meta.data$newtype, 
+                                         levels=c("Asc","Imb","MuSCprol","MuSCrenew", "Myocytes.early", 
+                                                  "Myocytes.late","myonuclei","Qsc"))
+seu.prepmono@meta.data$orig.ident <- factor(x=seu.prepmono@meta.data$orig.ident,
+                                            levels=c( "0.5 DPI", "2 DPI", "3.5 DPI", "5 DPI", "10 DPI", "21 DPI", "Noninjured"))
 
 #================================================================================
 # do monocle:
@@ -78,28 +84,40 @@ seu.prepmono <- subset(seu, idents="9",invert=T)
 print("doing monocle")
 source("~/INMG_SingleCell/scripts/functions_stock.R", local=T)
 cds <- domono(seu.prepmono, "SCT") # As RNA gives error :starting vector near the null space
-saveRDS(cds,paste0(rdsdir,"musc_postMONOcds.rds"))
+#saveRDS(cds,paste0(rdsdir,"musc_postMONOcds.rds"))
+
+cds <- readRDS(paste0(rdsdir,"musc_postMONOcds.rds"))
+
+# ORDER CELLS
+# --------------------------------------------------------------------------------
+print("Please click on most likely origin, on plot zone")
+plot_cell_trajectory(cds, color_by="orig.ident")
+cds <- orderCells(cds) # interacting with plot to define.
+# --------------------------------------------------------------------------------
+
 
 # ================================================================================  
 #              do visuals
 # ================================================================================
-# general
-# ================================================================================
+# IMPORTANT : DEFINITIONS : 
 
-# colors for type
+# colors for timepoints, a NAMED vector
 daysorder = c("0.5 DPI", "2 DPI", "3.5 DPI", "5 DPI", "10 DPI", "21 DPI", "Noninjured")
 dayscols = rev(viridis(length(daysorder), alpha=0.6))
-names(dayscols) = daysorder## !!
+names(dayscols) = daysorder  ## !!
 
-# colors for "newtype" : 
+# colors for "newtype", a NAMED vector : 
 MANUALCOLORS=c("orange2","lightblue","gold2","deepskyblue4","peachpuff2","aquamarine3","cadetblue4","violetred")
+names(MANUALCOLORS) = levels(seu.prepmono@meta.data$newtype)
 
-cds <- readRDS(paste0(rdsdir,"musc_postMONOcds.rds"))
-# order cells
-plot_cell_trajectory(cds, color_by="orig.ident")
-cds <- orderCells(cds) # interacting with plot to define.
+grem1sign = c("Grem1", "Nog", "Bmp2", "Bmp4", "Bmpr1a",
+              "Bmpr1b", "Bmpr2", "Id1", "Id2", "Id3","Bmp7")
 
-## !!
+#   plots using cds object
+# ================================================================================
+
+# general plots 
+# --------------------------------------------------------------------------------
 cartseu.plot <- DimPlot(seu.prepmono, group.by = "newtype", cols = MANUALCOLORS, 
                     label=T, repel=T,pt.size = 0.4, label.size = 4)
 dpiseu.plot <- DimPlot(seu.prepmono, group.by = "orig.ident", cols = dayscols, 
@@ -114,17 +132,17 @@ pseudpiplt <- plot_cell_trajectory(cds,color_by="orig.ident",cell_size = 1, alph
 pseuplot <- plot_cell_trajectory(cds,color_by="Pseudotime",cell_size = 0.8, alpha = 0.8)
 
 # print !!
-pdf(paste0(resu,"MUSC_monocleFirstStep.pdf"), width=13)
+#pdf(paste0(resu,"MUSC_monocleFirstStep.pdf"), width=13)
 plot_grid(plot_grid(cartseu.plot,  trajTypeplt + theme(legend.position = "right"),
                     NULL ,ncol=3, rel_widths = c(2,2,1)),  
           plot_grid(dpiseu.plot, pseudpiplt, pseuplot, ncol=3), nrow=2
           ) + plot_annotation("Monocle : MuSC+SM subpopulations")
-dev.off()
+#dev.off()
 
-# ================================================================================
+# --------------------------------------------------------------------------------
 
 # markers on trajectories
-# ================================================================================
+# --------------------------------------------------------------------------------
 
 domarkerplot <- function(cds, mymarker){
   plot <- plot_cell_trajectory(cds, cell_size = 0.8,
@@ -134,10 +152,6 @@ domarkerplot <- function(cds, mymarker){
     theme(legend.position = "none") 
   return(plot)
 }
-
-
-grem1sign = c("Grem1", "Nog", "Bmp2", "Bmp4", "Bmpr1a",
-          "Bmpr1b", "Bmpr2", "Id1", "Id2", "Id3","Bmp7")
 
 listgremplots = lapply(grem1sign, function(x) domarkerplot(cds, x)
 )
@@ -154,26 +168,23 @@ listknown = lapply(knowngenes, function(x) domarkerplot(cds, x))
 listknown[[length(listknown)+1]] <- legendalone
 
 # printing all markers
-pdf(paste0(resu,"MUSC_markersMonoc.pdf"), height = 12)
+#pdf(paste0(resu,"MUSC_markersGremMonoc.pdf"), height = 12)
 plot_grid(plotlist = listgremplots, nrow=4) +
  plot_annotation(title = "Gremlin signaling: Pseudotemporal trajectories (MuSC + myonuclei)")
 plot_grid(plotlist = listknown, nrow=4) + 
   plot_annotation(title = "known genes, trajectories (MuSC + myonuclei)")
-dev.off()
-
+#dev.off()
+# --------------------------------------------------------------------------------
 # ================================================================================
 
 # ================================================================================
-#                 do some other visuals
+#                 do some other visuals on seurat object
 # ================================================================================
-#  violin plots by marker by timepoint
-# fix factors
-seu.prepmono@meta.data$newtype <- factor(seu.prepmono@meta.data$newtype, 
-                                         levels=c("Asc","Imb","MuSCprol","MuSCrenew", "Myocytes.early", 
-                                                  "Myocytes.late","myonuclei","Qsc"))
-seu.prepmono@meta.data$orig.ident <- factor(x=seu.prepmono@meta.data$orig.ident,
-                                            levels=c( "0.5 DPI", "2 DPI", "3.5 DPI", "5 DPI", "10 DPI", "21 DPI", "Noninjured"))
+#  violin plots by marker by timepoint 
 
+
+# version facilitated by seurat functions
+# --------------------------------------------------------------------------------
 listVlngrem = lapply(grem1sign, function(x){
   p <- VlnPlot(seu.prepmono, features=x, cols=MANUALCOLORS, group.by = "orig.ident",
                pt.size = 0 , split.by = "newtype")
@@ -207,85 +218,99 @@ listVlngremB[[length(listVlngremB)+1]] <- legendalone2
 plot_grid(plotlist = listVlngremB, nrow=4, rel_heights = c(1,1,1,1.5)) + 
   plot_annotation("Signaling genes by celltype (resume)")
 
-pdf(paste0(resu,"MUSC_ViolinPlots1.pdf"),width=14, height = 17)
+#pdf(paste0(resu,"MUSC_ViolinpltGrem_DPI_V1.pdf"),width=14, height = 17)
 plot_grid(plotlist = listVlngrem, ncol=3) + plot_annotation("Signaling genes by celltype across time")
 plot_grid(plotlist = listVlngremB, NULL,NULL,NULL, NULL, ncol=4) + plot_annotation("Signaling genes by celltype (resume)")
+#dev.off()
+# --------------------------------------------------------------------------------
+
+# ================================================================================
+#  MORE COMPLICATED :
+print("doing ViolinPlots for all grem1 genes by celltype by timepoint:improved version")
+
+
+timesets <- SplitObject(seu.prepmono,split.by="orig.ident")
+plotsgrid = list()
+for (t in 1:7){ print(head(timesets[[t]]@meta.data$orig.ident, 1)) }  # order obtained: Noninjured, 0.5 2 3 5 10 21
+
+scaleFUN <- function(x) sprintf("%.2f", x)
+for (t in 1:7){
+ dpi.title = head(timesets[[t]]@meta.data$orig.ident, 1)
+ precisioncol <- sapply(names(table(timesets[[t]]@meta.data$newtype)[table(timesets[[t]]@meta.data$newtype)!=0]), function(x)
+   MANUALCOLORS[[x]])   #  colors must match !!: prevents errors when newtypes absent in [[t]] subset wont appear :)
+ plt.ls <- VlnPlot(timesets[[t]], features=grem1sign,
+              pt.size = 0 ,  cols=precisioncol, group.by = "newtype",combine=F)
+ tmp = list()
+ for (i in 1:(length(plt.ls)-1)){
+   tmp[[i]] <- plt.ls[[i]] + theme( axis.title.x= element_blank(),  
+                axis.text.x = element_blank(), 
+                axis.title.y= element_blank(),axis.text.y = element_text(size=7),
+                              title = element_text(size=0),
+                              legend.position = "none") + ylim(0,4.5)
+ }
+ # Take the last item to show x axis labels :
+ tmp[[length(plt.ls)]] <- plt.ls[[length(plt.ls)]] + theme(axis.title.x= element_blank(), 
+                                            axis.text.x = element_text(size=8),
+                           axis.title.y= element_blank(), axis.text.y =element_text(size=7),
+                                            title = element_text(size=0),
+                                            legend.position = "none") +
+                          scale_y_continuous(labels=scaleFUN) + ylim(0,4.5)
+ plotsgrid[[t]] <- plot_grid(ggdraw() + draw_text(dpi.title, size=14),
+                             plot_grid(plotlist=tmp, ncol=1 ), nrow=2, rel_heights = c(1,10)) 
+}
+
+titlesgenescolumn = plot_grid(NULL, ggdraw()+draw_text(grem1sign[1],size=14),
+                              ggdraw()+draw_text(grem1sign[2],size=14), 
+                              ggdraw()+draw_text(grem1sign[3],size=14), 
+                              ggdraw()+draw_text(grem1sign[4],size=14),
+                              ggdraw()+draw_text(grem1sign[5],size=14),
+                              ggdraw()+draw_text(grem1sign[6],size=14), 
+                              ggdraw()+draw_text(grem1sign[7],size=14),
+                              ggdraw()+draw_text(grem1sign[8],size=14),
+                              ggdraw()+draw_text(grem1sign[9],size=14),
+                              ggdraw()+draw_text(grem1sign[10],size=14), 
+                              ggdraw()+draw_text(grem1sign[11],size=14), 
+                              ncol=1)
+pdf(paste0(resu,"MUSC_ViolinpltGremDPI_SPLITTED.pdf"),width=14, height=17)
+plot_grid(titlesgenescolumn,plot_grid(plotlist=plotsgrid,ncol=7), ncol=2, rel_widths = c(1,7))
 dev.off()
-### **
 
 
-## END
+print("saving a table containing cells quantities accross dpi")
+for (t in 1:7){
+  dpi.title = head(timesets[[t]]@meta.data$orig.ident, 1)
+  tichar = as.character(dpi.title)
+  res = table(timesets[[t]]@meta.data$newtype) 
+  if (t == 1 ){
+    ctb = data.frame(res)
+    colnames(ctb) = c("Cell_classif", tichar)
+
+  } else {
+    ctb[[tichar]] = res
+  }
+}
+ctb$Cell_classif = as.character(ctb$Cell_classif)
+sumas = colSums(ctb[,2:8])
+addrow = rep(NA,8)
+ctb = rbind(ctb,addrow)
+ctb[9,1] = "TOTALS"
+ctb[9,2:8] = sumas
+
+write.table(ctb, paste0(resu,"MUSC_CellQuant_byDPI.txt"), sep="\t",
+            col.names = T, row.names=F)
+
+
+# NOTE: option to SplitObject (same thing anyways):
+# ================================================================================
+getsubsetOri <- function(objseu, origidentchosen ){
+  bc <- seu@meta.data %>% filter(orig.ident == origidentchosen) %>% pull(barcode)
+  newseu <- subset(seu, cells=bc)
+  return(newseu)
+}
+timesets <- lapply(c("Noninjured","0.5 DPI", "2 DPI", "3.5 DPI", "5 DPI", "10 DPI", "21 DPI"),
+                   function(dpi) {getsubsetOri(seu.prepmono)})
+
 # ================================================================================
 
-# ### logical ok but failed:
-# timesets <- SplitObject(seu.prepmono,split.by="orig.ident")
-# plotsgrid = list()
-# for (t in 1:7){ j <- head(timesets[[t]]@meta.data$orig.ident, 1)
-# print(j) }  # order obtained: Noninjured, 0.5 2 3 5 10 21
-# 
-# for (t in 1:7){ 
-#   mytitle = head(timesets[[t]]@meta.data$orig.ident, 1)
-#   k <- VlnPlot(seu.prepmono, features=grem1sign,  
-#                pt.size = 0 ,  cols=MANUALCOLORS, group.by = "newtype",combine=F)
-#   tmp = list()
-#   for (i in 1:(length(k)-1)){
-#     tmp[[i]] <- k[[i]] + theme(axis.text.x = element_blank(), axis.text.y =element_text(size=7), 
-#                                axis.title.x= element_blank(),  axis.title.y= element_blank(),
-#                                title = element_text(size=8),
-#                                legend.position = "none") 
-#   }
-#   tmp[[length(k)]] <- k[[length(k)]] + theme(axis.text = element_text(size=7), 
-#                                              axis.title.x= element_blank(), title = element_text(size=8),
-#                                              legend.position = "none")
-#   plotsgrid[[t]] <- plot_grid(plotlist=tmp, ncol=1) + plot_annotation(title=mytitle)
-# }
-# #  plotsgrid[[7]]
-# X = c("Noninjured", "0.5 DPI", "2 DPI", "3.5 DPI", "5 DPI", "10 DPI", "21 DPI")
-# 
 
-# pdf(paste0(resu,"MUSC_ViolinPlots2.pdf"), width=14,height=14)
-# plot_grid(plotlist=plotsgrid, labels=X, ncol=7)
-# dev.off()
-
-# pdf(paste0(resu,"MUSC_ViolinPlots2.pdf"), width=14,height=14)
-# plot_grid(
-#   plot_grid(NULL+labs(title="jop"),NULL,NULL, ncol=7),
-#   plot_grid(
-#     plotsgrid[[1]] + plot_annotation(title=X[1]),
-#     plotsgrid[[2]] + plot_annotation(title=X[2]),
-#     plotsgrid[[3]] + plot_annotation(title=X[3]),
-#     plotsgrid[[4]] + plot_annotation(title=X[4]),
-#     plotsgrid[[5]] + plot_annotation(title=X[5]),
-#     plotsgrid[[6]] + plot_annotation(title=X[6]),
-#     plotsgrid[[7]] + plot_annotation(title=X[7]),
-#     ncol=7),
-#   ncol=1, rel_heights = c(1,8)
-# )
-# dev.off()
-# 
-
-
-
-# ================================================================================
-# NOT GOOD:
-# # this supposes that colors have defined names
-# 
-# comparisontmp <- VlnPlot(seu.prepmono, features=grem1sign,  
-#                          pt.size = 0 , split.by = "orig.ident", cols=dayscols, group.by = "newtype")
-# comparisonli <- list()
-# for (i in 1:length(grem1sign)){
-#   if (i > length(grem1sign)-2){
-#     comparisonli[[i]] = comparisontmp[[i]] + theme(legend.position = "none", axis.title.x=element_blank(),
-#                                                    axis.text=element_text(size=7), title=element_text(size=8))
-#   }else{
-#     comparisonli[[i]] = comparisontmp[[i]] + theme(legend.position = "none", axis.title=element_blank(),
-#                                                    axis.text.y=element_blank(), title=element_text(size=8),
-#                                                    axis.text.x=element_text(size=7))
-#     
-#   }}
-# 
-# tmp2 <- VlnPlot(seu.prepmono, features="Pax7", split.by = "orig.ident", cols=dayscols)
-# 
-# legendalone2 <- cowplot::get_legend(tmp2)
-# comparisonli[[length(comparisonli)+1]] <- legendalone2
-# plot_grid(plotlist = comparisonli, ncol=3) + plot_annotation("For comparison purposes")
+# END
