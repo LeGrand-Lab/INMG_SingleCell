@@ -1,8 +1,12 @@
-# INMG_SingleCell
+## INMG_SingleCell
 
-!! under construction !!
+For a global view of this project go to documentation at pdf file :
+[a relative link](documentation/scRNAseq_in_skeletal_muscle(1).pdf)
 
-## Technical notes
+To make scripts work, first:
+- install all R packages mentioned in documentation.
+- install FIt-SNE as shown below (the related software is in zipped file 'programsSC.tar.xz', just unzip it and then follow instructions below) 
+- as said, unzip 'programsSC.tar.xz' file
 
 **UMAP vs FIt-SNE**
 
@@ -42,7 +46,7 @@ $ sudo su
 Important information about latest releases (version 1.2.0, version 1.2.1): https://github.com/KlugerLab/FIt-SNE/releases
 
 Quoting Dr.Linderman (team KlugerLab):
-"""
+
 Several changes to default FIt-SNE settings to make it more suitable for embedding large datasets.
 
 Major changes to default values:
@@ -54,7 +58,7 @@ Minor changes:
 -Late exaggeration start is set to the end of early exaggeration (if late exaggeration coefficient is provided).
 -Limiting max step size to 5 (solves problem encountered when learning rate set too high and attractive forces cause a small number of points to overshoot)
 
-""" 
+
 
 ----------
 References:
@@ -62,7 +66,7 @@ References:
 George C. Linderman, Manas Rachh, Jeremy G. Hoskins, Stefan Steinerberger, Yuval Kluger. (2019). Fast interpolation-based t-SNE for improved visualization of single-cell RNA-seq data. Nature Methods. 
 
 Kobak, D. & Berens, P. The art of using t-SNE for single-cell transcriptomics. Nat. Commun. 10, (2019).
-----------------
+
 ----------------
 Johanna GL
 
